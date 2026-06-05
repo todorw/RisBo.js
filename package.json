@@ -1,0 +1,49 @@
+{
+  "name": "risbo",
+  "version": "0.1.0",
+  "description": "RisBo.js — a fast, fine-grained reactive UI framework with zero dependencies.",
+  "type": "module",
+  "main": "./src/index.js",
+  "module": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "import": "./src/index.js"
+    },
+    "./reactivity": "./src/reactivity.js",
+    "./router": "./src/router.js",
+    "./store": "./src/store.js"
+  },
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "test": "node --test",
+    "dev": "node scripts/serve.js examples",
+    "example": "node scripts/serve.js examples"
+  },
+  "keywords": [
+    "framework",
+    "reactive",
+    "reactivity",
+    "signals",
+    "ui",
+    "frontend",
+    "dom",
+    "components",
+    "fine-grained"
+  ],
+  "author": "Vuk Todorovic",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TodorW/RisBo.js"
+  }
+}

@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RisBo.js — Todo</title>
+    <link rel="stylesheet" href="/examples/style.css" />
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module">
+      import { signal, computed, h, render, For, Show } from "/src/index.js";
+
+      function TodoApp() {
+        let nextId = 1;
+        const todos = signal([
+          { id: nextId++, text: "Learn RisBo.js signals", done: true },
+          { id: nextId++, text: "Build something delightful", done: false },
+        ]);
+        const draft = signal("");
+        const filter = signal("all"); // all | active | done
+
+        const visible = computed(() =>
+          todos().filter((t) =>
+            filter() === "all" ? true : filter() === "done" ? t.done : !t.done
+          )
+        );
+        const remaining = computed(() => todos().filter((t) => !t.done).length);
+
+        const add = () => {
+          const text = draft().trim();
+          if (!text) return;
+          todos.update((list) => [...list, { id: nextId++, text, done: false }]);
+          draft.set("");
+        };
+        const toggle = (id) =>
+          todos.update((list) =>
+            list.map((t) => (t.id === id ? { ...t, done: !t.done } : t))
+          );
+        const remove = (id) =>
+          todos.update((list) => list.filter((t) => t.id !== id));
+
+        const Tab = (value, label) =>
+          h(
+            "button",
+            {
+              class: () => (filter() === value ? "active" : ""),
+              "on:click": () => filter.set(value),
+            },
+            label
+          );
+
+        return h(
+          "div",
+          { class: "app" },
+          h("div", { class: "brand" }, h("span", { class: "dot" }), " RisBo.js"),
+          h("p", { class: "muted" }, () => `${remaining()} item(s) left`),
+          h(
+            "div",
+            { class: "card" },
+            h(
+              "form",
+              { class: "row", "on:submit": (e) => { e.preventDefault(); add(); } },
+              h("input", {
+                type: "text",
+                placeholder: "What needs doing?",
+                value: () => draft(),
+                "on:input": (e) => draft.set(e.target.value),
+              }),
+              h("button", { class: "primary", type: "submit" }, "Add")
+            ),
+            h(
+              "div",
+              { class: "tabs", style: "margin-top:16px" },
+              Tab("all", "All"),
+              Tab("active", "Active"),
+              Tab("done", "Done")
+            ),
+            h(
+              Show,
+              {
+                when: () => visible().length > 0,
+                fallback: () => h("p", { class: "muted", style: "margin-top:18px" }, "Nothing here."),
+              },
+              () =>
+                h(
+                  "ul",
+                  { class: "list" },
+                  h(
+                    For,
+                    { each: () => visible(), by: (t) => t.id },
+                    (todo) =>
+                      h(
+                        "li",
+                        { class: todo.done ? "done" : "" },
+                        h("input", {
+                          type: "checkbox",
+                          checked: todo.done,
+                          "on:change": () => toggle(todo.id),
+                        }),
+                        h("span", { class: "label" }, todo.text),
+                        h("button", { class: "ghost danger", "on:click": () => remove(todo.id) }, "✕")
+                      )
+                  )
+                )
+            )
+          )
+        );
+      }
+
+      render(TodoApp, document.getElementById("app"));
+    </script>
+  </body>
+</html>

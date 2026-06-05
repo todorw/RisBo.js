@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RisBo.js — Router</title>
+    <link rel="stylesheet" href="/examples/style.css" />
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module">
+      import { h, render, createRouter } from "/src/index.js";
+
+      const Home = () =>
+        h("div", { class: "card" },
+          h("h1", null, "Home"),
+          h("p", { class: "muted" }, "Client-side routing with the History API — no page reloads."));
+
+      const About = () =>
+        h("div", { class: "card" },
+          h("h1", null, "About"),
+          h("p", { class: "muted" }, "RisBo.js is a fine-grained reactive framework in a few hundred lines."));
+
+      const User = ({ params }) =>
+        h("div", { class: "card" },
+          h("h1", null, () => `User #${params.id}`),
+          h("p", { class: "muted" }, "Route params are passed straight to the component."),
+          h("p", null, router.Link({ href: "/users/" + (Number(params.id) + 1), children: "Next user →" })));
+
+      const router = createRouter(
+        [
+          { path: "/", component: Home },
+          { path: "/about", component: About },
+          { path: "/users/:id", component: User },
+        ],
+        {
+          base: "/examples/router",
+          fallback: () => h("div", { class: "card" }, h("h1", null, "404"), h("p", { class: "muted" }, "Not found.")),
+        }
+      );
+
+      const { Link, View } = router;
+
+      function App() {
+        return h("div", { class: "app" },
+          h("div", { class: "brand" }, h("span", { class: "dot" }), " RisBo.js"),
+          h("nav", { class: "links" },
+            Link({ href: "/", children: "Home" }),
+            Link({ href: "/about", children: "About" }),
+            Link({ href: "/users/1", children: "User 1" })),
+          View());
+      }
+
+      render(App, document.getElementById("app"));
+    </script>
+  </body>
+</html>

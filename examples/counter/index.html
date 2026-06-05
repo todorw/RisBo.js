@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RisBo.js — Counter</title>
+    <link rel="stylesheet" href="/examples/style.css" />
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module">
+      import { signal, computed, h, render } from "/src/index.js";
+
+      function Counter() {
+        const count = signal(0);
+        const parity = computed(() => (count() % 2 === 0 ? "even" : "odd"));
+
+        return h(
+          "div",
+          { class: "app" },
+          h("div", { class: "brand" }, h("span", { class: "dot" }), " RisBo.js"),
+          h("p", { class: "muted" }, "A reactive counter."),
+          h(
+            "div",
+            { class: "card" },
+            h("div", { class: "count" }, () => String(count())),
+            h(
+              "div",
+              { class: "row" },
+              h("button", { class: "primary", "on:click": () => count.set((n) => n + 1) }, "+ Increment"),
+              h("button", { "on:click": () => count.set((n) => n - 1) }, "– Decrement"),
+              h("button", { class: "ghost", "on:click": () => count.set(0) }, "Reset"),
+              h("span", { class: "pill", style: "margin-left:auto" }, () => parity())
+            )
+          )
+        );
+      }
+
+      render(Counter, document.getElementById("app"));
+    </script>
+  </body>
+</html>
