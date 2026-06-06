@@ -1,11 +1,14 @@
 import {
+  signal,
   effect,
   untrack,
+  onCleanup,
   createRoot,
   getOwner,
   createChildScope,
   disposeScope,
   runWithOwner,
+  resource,
 } from "./reactivity.js";
 
 /** Marker used to group children without a wrapper element. */
@@ -60,12 +63,28 @@ function setProp(el, key, value) {
     el.addEventListener(key.slice(2).toLowerCase(), value);
     return;
   }
+  // classList: { "is-active": () => active(), error: hasError }
+  if (key === "classList") {
+    for (const name in value) {
+      const flag = value[name];
+      if (typeof flag === "function") effect(() => toggleClass(el, name, flag()));
+      else toggleClass(el, name, flag);
+    }
+    return;
+  }
   // Reactive prop: re-apply whenever its dependencies change.
   if (typeof value === "function") {
     effect(() => applyProp(el, key, value()));
     return;
   }
   applyProp(el, key, value);
+}
+
+function toggleClass(el, name, on) {
+  const classes = new Set((el.getAttribute("class") || "").split(/\s+/).filter(Boolean));
+  if (on) classes.add(name);
+  else classes.delete(name);
+  el.setAttribute("class", [...classes].join(" "));
 }
 
 const PROPERTIES = new Set(["value", "checked", "selected", "disabled", "innerHTML", "textContent"]);
@@ -97,10 +116,15 @@ function applyProp(el, key, value) {
  * Insert `value` into `parent` before the optional `before` node. Functions are
  * treated as reactive regions and re-rendered when their dependencies change.
  */
+/** True for any DOM-like node (works in the browser, the server DOM and tests). */
+function isNode(value) {
+  return value != null && typeof value === "object" && typeof value.nodeType === "number";
+}
+
 export function insert(parent, value, before) {
   if (value == null || value === false || value === true) return;
 
-  if (value instanceof Node) {
+  if (isNode(value)) {
     parent.insertBefore(value, before);
     return;
   }
@@ -235,7 +259,7 @@ export function For(props) {
       if (!entry) {
         const scope = createChildScope(owner);
         const node = runWithOwner(scope, () => renderItem(item, index));
-        entry = { node: node instanceof Node ? node : toNode(node), scope };
+        entry = { node: isNode(node) ? node : toNode(node), scope };
       }
       next.set(key, entry);
       ordered.push(entry);
@@ -270,10 +294,170 @@ function toNode(value) {
 // Lifecycle
 // -----------------------------------------------------------------------------
 
+/** Render a list keyed by index — reuses row nodes and updates each item via a
+ * signal. Best when items are primitives or the list mostly mutates in place. */
+export function Index(props) {
+  const each = accessor(props.each);
+  const renderItem = props.children || props.render;
+  const owner = getOwner();
+
+  const start = document.createComment("index");
+  const end = document.createComment("/index");
+  const fragment = document.createDocumentFragment();
+  fragment.appendChild(start);
+  fragment.appendChild(end);
+
+  const rows = []; // { item: Signal, node, scope }
+
+  effect(() => {
+    const items = Array.from(each() || []);
+
+    for (let i = rows.length; i < items.length; i++) {
+      const item = signal(items[i]);
+      const scope = createChildScope(owner);
+      const node = runWithOwner(scope, () => renderItem(item, i));
+      rows[i] = { item, node: isNode(node) ? node : toNode(node), scope };
+    }
+    for (let i = items.length; i < rows.length; i++) {
+      if (rows[i].node.parentNode) rows[i].node.remove();
+      disposeScope(rows[i].scope);
+    }
+    rows.length = items.length;
+
+    items.forEach((value, i) => rows[i].item.set(value));
+
+    const parent = end.parentNode;
+    for (const row of rows) parent.insertBefore(row.node, end);
+  });
+
+  return fragment;
+}
+
+/** Render a component chosen at runtime. `component` may be reactive. */
+export function Dynamic(props) {
+  const { component, ...rest } = props;
+  const get = accessor(component);
+  return () => {
+    const Component = get();
+    return Component ? createComponent(Component, rest) : null;
+  };
+}
+
+/** Catch errors thrown while rendering children (pass children as a thunk). */
+export function ErrorBoundary(props) {
+  const reset = signal(0);
+  return () => {
+    reset(); // re-run when reset() is called
+    try {
+      return resolve(props.children);
+    } catch (error) {
+      const fallback = props.fallback;
+      return typeof fallback === "function"
+        ? fallback(error, () => reset.set((n) => n + 1))
+        : fallback;
+    }
+  };
+}
+
+/** Render children into a different part of the DOM (e.g. document.body). */
+export function Portal(props) {
+  const mount = props.mount || (typeof document !== "undefined" ? document.body : null);
+  const start = document.createComment("portal");
+  const end = document.createComment("/portal");
+  mount.appendChild(start);
+  mount.appendChild(end);
+  insert(mount, props.children, end);
+  onCleanup(() => {
+    clearBetween(start, end);
+    start.remove();
+    end.remove();
+  });
+  return document.createComment("portal-anchor");
+}
+
+// -----------------------------------------------------------------------------
+// Two-way binding helpers — spread onto an element's props.
+//   h("input", model(name))
+//   h("input", { type: "checkbox", ...modelChecked(done) })
+// -----------------------------------------------------------------------------
+
+export function model(sig) {
+  return {
+    value: () => sig(),
+    "on:input": (event) => sig.set(event.target.value),
+  };
+}
+
+export function modelChecked(sig) {
+  return {
+    checked: () => sig(),
+    "on:change": (event) => sig.set(event.target.checked),
+  };
+}
+
+// -----------------------------------------------------------------------------
+// Lazy components (code-splitting)
+// -----------------------------------------------------------------------------
+
+/**
+ * Defer loading a component until it renders.
+ *   const Settings = lazy(() => import("./Settings.js"));
+ *   h(Settings, { fallback: () => h(Spinner) });
+ * The loader should resolve to a module with a default export, or the
+ * component function itself.
+ */
+export function lazy(loader) {
+  return function LazyComponent(props) {
+    const { fallback, ...rest } = props || {};
+    const loaded = resource(() =>
+      Promise.resolve(loader()).then((mod) => (mod && mod.default) || mod)
+    );
+    return () => {
+      if (loaded.error()) throw loaded.error();
+      if (loaded.loading()) return fallback ? resolve(fallback) : null;
+      const Component = loaded();
+      return Component ? createComponent(Component, rest) : null;
+    };
+  };
+}
+
+// -----------------------------------------------------------------------------
+// Prop helpers
+// -----------------------------------------------------------------------------
+
+/** Shallow-merge prop objects (later sources win). */
+export function mergeProps(...sources) {
+  return Object.assign({}, ...sources.filter(Boolean));
+}
+
+/**
+ * Split a props object into groups by key, returning each group plus the rest.
+ *   const [local, rest] = splitProps(props, ["class", "onClick"]);
+ */
+export function splitProps(props, ...keyGroups) {
+  const taken = new Set();
+  const groups = keyGroups.map((keys) => {
+    const group = {};
+    for (const key of keys) {
+      if (key in props) group[key] = props[key];
+      taken.add(key);
+    }
+    return group;
+  });
+  const rest = {};
+  for (const key in props) if (!taken.has(key)) rest[key] = props[key];
+  groups.push(rest);
+  return groups;
+}
+
+// -----------------------------------------------------------------------------
+// Lifecycle
+// -----------------------------------------------------------------------------
+
 /** Run a callback after the current render is committed to the DOM. */
 export function onMount(fn) {
   const owner = getOwner();
   queueMicrotask(() => runWithOwner(owner, fn));
 }
 
-export { onCleanup } from "./reactivity.js";
+export { onCleanup };

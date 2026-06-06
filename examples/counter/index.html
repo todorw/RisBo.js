@@ -1,39 +1,39 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>RisBo.js — Counter</title>
     <link rel="stylesheet" href="/examples/style.css" />
+    <style>body { padding: 80px 20px; } .app { max-width: 460px; }</style>
   </head>
   <body>
     <div id="app"></div>
+    <script src="/examples/theme.js"></script>
     <script type="module">
       import { signal, computed, h, render } from "/src/index.js";
 
       function Counter() {
         const count = signal(0);
         const parity = computed(() => (count() % 2 === 0 ? "even" : "odd"));
+        const sign = computed(() => (count() > 0 ? "positive" : count() < 0 ? "negative" : "zero"));
 
-        return h(
-          "div",
-          { class: "app" },
-          h("div", { class: "brand" }, h("span", { class: "dot" }), " RisBo.js"),
-          h("p", { class: "muted" }, "A reactive counter."),
-          h(
-            "div",
-            { class: "card" },
-            h("div", { class: "count" }, () => String(count())),
-            h(
-              "div",
-              { class: "row" },
-              h("button", { class: "primary", "on:click": () => count.set((n) => n + 1) }, "+ Increment"),
-              h("button", { "on:click": () => count.set((n) => n - 1) }, "– Decrement"),
-              h("button", { class: "ghost", "on:click": () => count.set(0) }, "Reset"),
-              h("span", { class: "pill", style: "margin-left:auto" }, () => parity())
-            )
-          )
-        );
+        const step = (delta, cls = "") =>
+          h("button", { class: cls, "on:click": () => count.set((n) => n + delta) },
+            delta > 0 ? "+ Increment" : "− Decrement");
+
+        return h("div", { class: "app stack" },
+          h("a", { class: "brand", href: "/" }, h("span", { class: "logo" }), " RisBo", h("span", { class: "muted" }, ".js")),
+          h("p", { class: "muted" }, "A reactive counter — every label updates on its own."),
+          h("div", { class: "card stack", style: "gap:20px" },
+            h("div", { class: "spread" },
+              h("span", { class: "eyebrow" }, "Counter"),
+              h("span", { class: "badge" }, () => `${parity()} · ${sign()}`)),
+            h("div", { class: "count gradient-text" }, () => String(count())),
+            h("div", { class: "row", style: "justify-content:center" },
+              step(-1),
+              step(1, "primary"),
+              h("button", { class: "ghost", "on:click": () => count.set(0) }, "Reset"))));
       }
 
       render(Counter, document.getElementById("app"));

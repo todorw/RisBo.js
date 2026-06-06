@@ -1,31 +1,37 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>RisBo.js — Router</title>
     <link rel="stylesheet" href="/examples/style.css" />
+    <style>body { padding: 80px 20px; } .app { max-width: 560px; }</style>
   </head>
   <body>
     <div id="app"></div>
+    <script src="/examples/theme.js"></script>
     <script type="module">
       import { h, render, createRouter } from "/src/index.js";
 
+      const Page = (title, body, extra) =>
+        h("div", { class: "card stack", style: "gap:10px" },
+          h("span", { class: "eyebrow" }, title),
+          h("h2", null, body),
+          extra);
+
       const Home = () =>
-        h("div", { class: "card" },
-          h("h1", null, "Home"),
-          h("p", { class: "muted" }, "Client-side routing with the History API — no page reloads."));
+        Page("Home", "Client-side routing, no reloads.",
+          h("p", { class: "muted" }, "RisBo's router is built on the History API and signals — the active view is just a computed."));
 
       const About = () =>
-        h("div", { class: "card" },
-          h("h1", null, "About"),
-          h("p", { class: "muted" }, "RisBo.js is a fine-grained reactive framework in a few hundred lines."));
+        Page("About", "A few hundred lines.",
+          h("p", { class: "muted" }, "Signals, a renderer, control flow, a router and a store — all dependency-free."));
 
       const User = ({ params }) =>
-        h("div", { class: "card" },
-          h("h1", null, () => `User #${params.id}`),
-          h("p", { class: "muted" }, "Route params are passed straight to the component."),
-          h("p", null, router.Link({ href: "/users/" + (Number(params.id) + 1), children: "Next user →" })));
+        Page("Profile", () => `User #${params.id}`,
+          h("div", { class: "stack", style: "gap:12px" },
+            h("p", { class: "muted" }, "Route params are passed straight to the component."),
+            router.Link({ href: "/users/" + (Number(params.id) + 1), class: "btn btn-sm", children: "Next user →" })));
 
       const router = createRouter(
         [
@@ -35,19 +41,19 @@
         ],
         {
           base: "/examples/router",
-          fallback: () => h("div", { class: "card" }, h("h1", null, "404"), h("p", { class: "muted" }, "Not found.")),
+          fallback: () => Page("404", "Nothing here.", h("p", { class: "muted" }, "That route doesn't exist.")),
         }
       );
 
       const { Link, View } = router;
 
       function App() {
-        return h("div", { class: "app" },
-          h("div", { class: "brand" }, h("span", { class: "dot" }), " RisBo.js"),
+        return h("div", { class: "app stack" },
+          h("a", { class: "brand", href: "/" }, h("span", { class: "logo" }), " RisBo", h("span", { class: "muted" }, ".js")),
           h("nav", { class: "links" },
             Link({ href: "/", children: "Home" }),
             Link({ href: "/about", children: "About" }),
-            Link({ href: "/users/1", children: "User 1" })),
+            Link({ href: "/users/1", children: "Users" })),
           View());
       }
 

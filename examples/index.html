@@ -1,58 +1,293 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>RisBo.js — Examples</title>
+    <title>RisBo.js — a fast, fine-grained reactive UI framework</title>
+    <meta name="description" content="RisBo.js is a fast, fine-grained reactive UI framework for JavaScript — signals, components, routing, a store and SSR, with zero dependencies." />
+    <link rel="stylesheet" href="/examples/style.css" />
     <style>
-      :root {
-        color-scheme: dark;
-        --bg: #0b0f17;
-        --panel: #131a26;
-        --border: #233044;
-        --text: #e6edf6;
-        --muted: #8aa0b8;
-        --brand: #5b8cff;
-        --brand-2: #46e0c0;
+      .hero { padding: 84px 0 40px; }
+      .hero-grid { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 40px; align-items: center; }
+      .hero h1 { margin: 18px 0 0; }
+      .hero p.lead { font-size: 19px; color: var(--muted); margin-top: 20px; max-width: 30ch; }
+      .cta { display: flex; gap: 12px; margin-top: 30px; flex-wrap: wrap; }
+      .install { margin-top: 22px; display: inline-flex; align-items: center; gap: 12px;
+        font: 500 14px var(--mono); color: var(--muted); background: var(--panel-2);
+        border: 1px solid var(--border); border-radius: 12px; padding: 11px 14px; }
+      .install b { color: var(--text); font-weight: 600; }
+      .install .copy { margin-left: 4px; }
+      .demo-card { padding: 26px; }
+      .features { padding: 60px 0; }
+      .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 36px; }
+      .feature { padding: 22px; }
+      .feature .ico { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center;
+        background: var(--grad-soft); border: 1px solid var(--border); color: var(--brand); margin-bottom: 14px; }
+      .feature h3 { margin-bottom: 6px; }
+      .feature p { color: var(--muted); font-size: 14.5px; }
+      .section-head { text-align: center; max-width: 56ch; margin: 0 auto; }
+      .section-head p { color: var(--muted); margin-top: 12px; }
+      .showcase { padding: 30px 0 10px; }
+      .showcase-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 36px; align-items: stretch; }
+      .examples { padding: 64px 0; }
+      .ex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 32px; }
+      .ex { padding: 20px; text-decoration: none; display: block; transition: .18s; }
+      .ex:hover { border-color: var(--brand); transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+      .ex .tag { font: 600 12px var(--mono); color: var(--brand); }
+      .ex h3 { margin: 10px 0 4px; }
+      .ex p { color: var(--muted); font-size: 14px; }
+      @media (max-width: 860px) {
+        .feature-grid, .ex-grid { grid-template-columns: 1fr 1fr; }
+        .showcase-grid { grid-template-columns: 1fr; }
       }
-      * { box-sizing: border-box; }
-      body {
-        margin: 0; min-height: 100vh; background: radial-gradient(1200px 600px at 70% -10%, #18243a 0%, var(--bg) 60%);
-        color: var(--text); font: 16px/1.6 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-        display: grid; place-items: center; padding: 48px 20px;
-      }
-      .wrap { width: 100%; max-width: 720px; }
-      .brand { display: flex; align-items: center; gap: 12px; font-weight: 800; font-size: 28px; letter-spacing: -0.02em; }
-      .dot { width: 14px; height: 14px; border-radius: 50%; background: linear-gradient(135deg, var(--brand), var(--brand-2)); box-shadow: 0 0 24px #5b8cff66; }
-      p.lead { color: var(--muted); margin-top: 6px; }
-      .grid { display: grid; gap: 14px; margin-top: 28px; }
-      a.card {
-        display: block; text-decoration: none; color: inherit; background: var(--panel);
-        border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; transition: .18s;
-      }
-      a.card:hover { border-color: var(--brand); transform: translateY(-2px); }
-      a.card h3 { margin: 0 0 4px; font-size: 17px; }
-      a.card span { color: var(--muted); font-size: 14px; }
-      footer { margin-top: 32px; color: var(--muted); font-size: 13px; }
-      code { background: #0d1320; border: 1px solid var(--border); padding: 2px 6px; border-radius: 6px; }
+      @media (max-width: 560px) { .feature-grid, .ex-grid { grid-template-columns: 1fr; } }
     </style>
   </head>
   <body>
-    <main class="wrap">
-      <div class="brand"><span class="dot"></span> RisBo.js</div>
-      <p class="lead">A fast, fine-grained reactive UI framework — zero dependencies.</p>
-      <div class="grid">
-        <a class="card" href="/examples/counter/">
-          <h3>Counter →</h3><span>Signals, reactive text and event handlers.</span>
-        </a>
-        <a class="card" href="/examples/todo/">
-          <h3>Todo app →</h3><span>Store, keyed <code>For</code> lists, <code>Show</code>, computeds.</span>
-        </a>
-        <a class="card" href="/examples/router/">
-          <h3>Router →</h3><span>Client-side routing with params and links.</span>
-        </a>
+    <header class="nav">
+      <div class="container">
+        <a class="brand" href="/"><span class="logo"></span> RisBo<span class="muted">.js</span></a>
+        <nav class="nav-links">
+          <a href="#features" class="hide-sm">Features</a>
+          <a href="#showcase" class="hide-sm">Showcase</a>
+          <a href="#examples">Examples</a>
+          <a href="https://github.com/TodorW/RisBo.js" class="hide-sm">GitHub</a>
+          <button class="icon ghost" id="theme" title="Toggle theme" aria-label="Toggle theme"></button>
+        </nav>
       </div>
-      <footer>Run with <code>npm run dev</code>. Built with RisBo.js.</footer>
+    </header>
+
+    <main>
+      <!-- HERO -->
+      <section class="hero">
+        <div class="container hero-grid">
+          <div>
+            <span class="pill">⚡ Zero dependencies · ~3 kB core</span>
+            <h1>Reactive UI,<br /><span class="gradient-text">refined.</span></h1>
+            <p class="lead">A fine-grained reactive framework. Change a signal — RisBo updates the exact DOM node that depends on it. No virtual DOM, no build step.</p>
+            <div class="cta">
+              <a class="btn btn-primary" href="#examples">Explore examples →</a>
+              <a class="btn" href="https://github.com/TodorW/RisBo.js">Star on GitHub</a>
+            </div>
+            <div class="install">
+              <span class="faint">$</span> <b>npm i risbo</b>
+              <button class="btn-sm ghost copy" data-copy="npm i risbo">Copy</button>
+            </div>
+          </div>
+
+          <div class="card demo-card" id="hero-demo">
+            <!-- Live RisBo counter mounts here -->
+          </div>
+        </div>
+      </section>
+
+      <!-- FEATURES -->
+      <section class="features" id="features">
+        <div class="container">
+          <div class="section-head">
+            <span class="eyebrow">Why RisBo</span>
+            <h2>Everything you need, nothing you don't.</h2>
+            <p>A complete toolkit — reactivity, components, control flow, routing, a store and server rendering — in a library you can read end to end.</p>
+          </div>
+          <div class="feature-grid">
+            <div class="card feature">
+              <div class="ico">◑</div>
+              <h3>Fine-grained</h3>
+              <p>Updates touch only the text node or attribute that changed — not whole component trees.</p>
+            </div>
+            <div class="card feature">
+              <div class="ico">⌘</div>
+              <h3>No build step</h3>
+              <p>Standard ES modules. Drop it in a <code>&lt;script type="module"&gt;</code> and ship.</p>
+            </div>
+            <div class="card feature">
+              <div class="ico">⊹</div>
+              <h3>Tiny &amp; fast</h3>
+              <p>No virtual DOM diffing. Bindings wire straight to the DOM at creation time.</p>
+            </div>
+            <div class="card feature">
+              <div class="ico">⟲</div>
+              <h3>Async built in</h3>
+              <p><code>resource()</code> tracks promises with loading and error state, and refetches reactively.</p>
+            </div>
+            <div class="card feature">
+              <div class="ico">⎇</div>
+              <h3>Routing &amp; store</h3>
+              <p>A History-API router with params, plus a reactive store with batched actions.</p>
+            </div>
+            <div class="card feature">
+              <div class="ico">⇪</div>
+              <h3>Server rendering</h3>
+              <p><code>renderToString()</code> renders the same components to HTML — no browser required.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SHOWCASE -->
+      <section class="showcase" id="showcase">
+        <div class="container">
+          <div class="section-head">
+            <span class="eyebrow">The whole idea</span>
+            <h2>Signals in, DOM out.</h2>
+            <p>Declare reactive state, return DOM. RisBo keeps them in sync automatically.</p>
+          </div>
+          <div class="showcase-grid">
+            <div class="code">
+              <div class="code-head"><span class="dot-row"><i></i><i></i><i></i></span><span class="name">counter.js</span></div>
+              <pre><code class="js">import { signal, computed, h, render } from "risbo";
+
+function Counter() {
+  const count = signal(0);
+  const parity = computed(() =>
+    count() % 2 === 0 ? "even" : "odd");
+
+  return h("div", { class: "card" },
+    h("p", null, () => `Count: ${count()} (${parity()})`),
+    h("button", { "on:click": () => count.set(n => n + 1) },
+      "Increment"));
+}
+
+render(Counter, document.querySelector("#app"));</code></pre>
+            </div>
+            <div class="code">
+              <div class="code-head"><span class="dot-row"><i></i><i></i><i></i></span><span class="name">todo.js — control flow</span></div>
+              <pre><code class="js">import { signal, h, For, Show } from "risbo";
+
+const todos = signal([{ id: 1, text: "Ship it", done: false }]);
+
+const List = () =>
+  h(Show, { when: () => todos().length, fallback: () => "All clear" },
+    () => h("ul", null,
+      h(For, { each: () => todos(), by: t => t.id },
+        (todo) => h("li", { class: todo.done && "done" },
+          todo.text))));
+
+// Reorder or remove items — RisBo reuses the matching DOM nodes.</code></pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- EXAMPLES -->
+      <section class="examples" id="examples">
+        <div class="container">
+          <div class="section-head">
+            <span class="eyebrow">Try it live</span>
+            <h2>Runnable examples.</h2>
+            <p>Each demo is a real RisBo app. Read the source in <code>examples/</code>.</p>
+          </div>
+          <div class="ex-grid">
+            <a class="card ex" href="/examples/counter/">
+              <span class="tag">signals</span>
+              <h3>Counter →</h3>
+              <p>Signals, computeds, reactive text and event handlers.</p>
+            </a>
+            <a class="card ex" href="/examples/todo/">
+              <span class="tag">For · Show · store</span>
+              <h3>Todo app →</h3>
+              <p>Keyed lists, filters, two-way binding and a reactive store.</p>
+            </a>
+            <a class="card ex" href="/examples/data/">
+              <span class="tag">resource</span>
+              <h3>Async data →</h3>
+              <p>Loading and error states with <code>resource()</code> and refetch.</p>
+            </a>
+            <a class="card ex" href="/examples/router/">
+              <span class="tag">router</span>
+              <h3>Router →</h3>
+              <p>Client-side routing with path params and links.</p>
+            </a>
+          </div>
+        </div>
+      </section>
     </main>
+
+    <footer class="footer">
+      <div class="container">
+        <a class="brand" href="/"><span class="logo"></span> RisBo<span class="muted">.js</span></a>
+        <span class="muted">MIT licensed · Built with RisBo.js · © 2026 Vuk Todorovic</span>
+      </div>
+    </footer>
+
+    <!-- Live demo (dogfooding RisBo) -->
+    <script type="module">
+      import { signal, computed, h, render } from "/src/index.js";
+
+      function HeroCounter() {
+        const count = signal(3);
+        const parity = computed(() => (count() % 2 === 0 ? "even" : "odd"));
+        const btn = (label, fn, cls = "") =>
+          h("button", { class: cls, "on:click": fn }, label);
+
+        return h("div", { class: "stack" },
+          h("div", { class: "spread" },
+            h("span", { class: "eyebrow" }, "Live demo"),
+            h("span", { class: "badge" }, () => parity())),
+          h("div", { class: "count gradient-text" }, () => String(count())),
+          h("div", { class: "row", style: "justify-content:center" },
+            btn("−", () => count.set((n) => n - 1)),
+            btn("+ Increment", () => count.set((n) => n + 1), "primary"),
+            btn("Reset", () => count.set(0), "ghost")));
+      }
+
+      render(HeroCounter, document.getElementById("hero-demo"));
+    </script>
+
+    <!-- Theme toggle + copy + tiny syntax highlighter -->
+    <script>
+      // Theme
+      const root = document.documentElement;
+      const themeBtn = document.getElementById("theme");
+      const saved = localStorage.getItem("risbo-theme");
+      if (saved) root.setAttribute("data-theme", saved);
+      const sun = "☀";
+      const moon = "☾";
+      const paint = () => (themeBtn.textContent = root.getAttribute("data-theme") === "light" ? moon : sun);
+      paint();
+      themeBtn.addEventListener("click", () => {
+        const next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
+        root.setAttribute("data-theme", next);
+        localStorage.setItem("risbo-theme", next);
+        paint();
+      });
+
+      // Copy buttons
+      document.querySelectorAll("[data-copy]").forEach((b) =>
+        b.addEventListener("click", async () => {
+          await navigator.clipboard?.writeText(b.dataset.copy);
+          const t = b.textContent;
+          b.textContent = "Copied";
+          setTimeout(() => (b.textContent = t), 1200);
+        })
+      );
+
+      // Minimal syntax highlighter for <code class="js">
+      const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      const KW = "import|from|export|default|const|let|var|function|return|if|else|for|of|in|new|class|extends|true|false|null|undefined|await|async|typeof";
+      const re = new RegExp(
+        "(\\/\\/[^\\n]*)" +
+          "|(`(?:\\\\.|[^`\\\\])*`|\"(?:\\\\.|[^\"\\\\])*\"|'(?:\\\\.|[^'\\\\])*')" +
+          "|\\b(\\d+(?:\\.\\d+)?)\\b" +
+          "|\\b(" + KW + ")\\b" +
+          "|([A-Za-z_$][\\w$]*)(?=\\s*\\()",
+        "g"
+      );
+      document.querySelectorAll("code.js").forEach((node) => {
+        const src = node.textContent;
+        let out = "", last = 0, m;
+        while ((m = re.exec(src))) {
+          out += esc(src.slice(last, m.index));
+          if (m[1]) out += `<span class="tok-com">${esc(m[1])}</span>`;
+          else if (m[2]) out += `<span class="tok-str">${esc(m[2])}</span>`;
+          else if (m[3]) out += `<span class="tok-num">${esc(m[3])}</span>`;
+          else if (m[4]) out += `<span class="tok-key">${esc(m[4])}</span>`;
+          else if (m[5]) out += `<span class="tok-fn">${esc(m[5])}</span>`;
+          last = re.lastIndex;
+        }
+        out += esc(src.slice(last));
+        node.innerHTML = out;
+      });
+    </script>
   </body>
 </html>

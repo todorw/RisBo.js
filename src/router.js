@@ -65,22 +65,39 @@ export function createRouter(routes, options = {}) {
 
   window.addEventListener("popstate", () => path.set(currentPath()));
 
+  const pathname = computed(() => stripBase(path()).split("?")[0].split("#")[0] || "/");
   const matched = computed(() => matchRoute(routes, stripBase(path())));
+  const params = computed(() => (matched() ? matched().params : {}));
+  const query = computed(() => {
+    const search = path().split("?")[1];
+    const out = {};
+    if (search) new URLSearchParams("?" + search.split("#")[0]).forEach((v, k) => (out[k] = v));
+    return out;
+  });
 
   /** Reactive component that renders the active route. */
   const View = () => () => {
     const match = matched();
-    if (match) return match.route.component({ params: match.params, navigate });
+    if (match) return match.route.component({ params: match.params, navigate, query: query() });
     return options.fallback ? options.fallback() : null;
   };
 
-  /** Anchor that navigates without a full page reload. */
+  const norm = (p) => (p.length > 1 ? p.replace(/\/+$/, "") : p);
+
+  /** Anchor that navigates without a full page reload, with active styling. */
   const Link = (props) => {
-    const { href, children, ...rest } = props;
+    const { href, children, class: className, activeClass = "active", end = false, ...rest } = props;
+    const target = norm(href.split("?")[0]);
+    const isActive = () => {
+      const here = norm(pathname());
+      return end ? here === target : here === target || here.startsWith(target + "/");
+    };
     return h(
       "a",
       {
         href: withBase(href),
+        class: () => [className, isActive() ? activeClass : ""].filter(Boolean).join(" "),
+        "aria-current": () => (isActive() ? "page" : null),
         "on:click": (event) => {
           if (event.metaKey || event.ctrlKey || event.shiftKey) return;
           event.preventDefault();
@@ -92,5 +109,5 @@ export function createRouter(routes, options = {}) {
     );
   };
 
-  return { path, navigate, matched, View, Link };
+  return { path, pathname, navigate, matched, params, query, View, Link };
 }

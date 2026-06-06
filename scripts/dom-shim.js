@@ -118,5 +118,6 @@ export function installDOM() {
     createComment: (data) => new Comment(data),
     createDocumentFragment: () => new DocumentFragment(),
   };
+  globalThis.document.body = new Element("body");
   globalThis.Node = Node;
 }

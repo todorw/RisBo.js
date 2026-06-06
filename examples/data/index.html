@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RisBo.js — Async data</title>
+    <link rel="stylesheet" href="/examples/style.css" />
+    <style>body { padding: 80px 20px; } .app { max-width: 520px; }
+      .avatar { width: 52px; height: 52px; border-radius: 14px; background: var(--grad); display: grid; place-items: center; font-weight: 800; color: #08101f; }
+      .field { display: flex; justify-content: space-between; padding: 11px 2px; border-top: 1px solid var(--border); }
+      .field:first-of-type { border-top: none; }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script src="/examples/theme.js"></script>
+    <script type="module">
+      import { signal, h, render, resource, Show, Switch, Match } from "/src/index.js";
+
+      // A pretend API with latency + the occasional failure.
+      const PEOPLE = {
+        1: { name: "Ada Lovelace", role: "Mathematician", born: 1815 },
+        2: { name: "Alan Turing", role: "Computer Scientist", born: 1912 },
+        3: { name: "Grace Hopper", role: "Rear Admiral", born: 1906 },
+        4: { name: "Edsger Dijkstra", role: "Computer Scientist", born: 1930 },
+      };
+      const fakeFetch = (id) =>
+        new Promise((resolve, reject) =>
+          setTimeout(() => {
+            if (Math.random() < 0.18) reject(new Error("Network hiccup — try again"));
+            else resolve(PEOPLE[id]);
+          }, 650)
+        );
+
+      function App() {
+        const id = signal(1);
+        const person = resource(() => id(), fakeFetch);
+
+        const NavBtn = (n) =>
+          h("button", { class: () => (id() === n ? "active" : ""), "on:click": () => id.set(n) }, `#${n}`);
+
+        return h("div", { class: "app stack" },
+          h("a", { class: "brand", href: "/" }, h("span", { class: "logo" }), " RisBo", h("span", { class: "muted" }, ".js")),
+          h("p", { class: "muted" }, "Async data with ", h("code", null, "resource()"), " — loading, error and refetch, all reactive."),
+          h("div", { class: "spread" },
+            h("div", { class: "tabs" }, NavBtn(1), NavBtn(2), NavBtn(3), NavBtn(4)),
+            h("button", { class: "btn-sm", "on:click": () => person.refetch() }, "↻ Refetch")),
+          h("div", { class: "card", style: "min-height:150px" },
+            h(Switch, {
+                fallback: () => h(PersonCard, { person }),
+              },
+              h(Match, { when: () => person.loading() }, () => h(Skeleton)),
+              h(Match, { when: () => person.error() },
+                () => h("div", { class: "stack" },
+                  h("span", { class: "badge", style: "color:var(--danger);border-color:#ff6b8133;background:#ff6b8114" }, "Error"),
+                  h("p", { class: "muted" }, () => person.error().message),
+                  h("button", { class: "primary btn-sm", style: "width:fit-content", "on:click": () => person.refetch() }, "Retry"))))));
+      }
+
+      function PersonCard({ person }) {
+        const p = () => person() || {};
+        return h("div", { class: "stack", style: "gap:16px" },
+          h("div", { class: "row", style: "gap:14px" },
+            h("div", { class: "avatar" }, () => (p().name ? p().name[0] : "?")),
+            h("div", null,
+              h("h3", null, () => p().name || ""),
+              h("span", { class: "faint", style: "font-size:14px" }, () => p().role || ""))),
+          h("div", null,
+            h("div", { class: "field" }, h("span", { class: "muted" }, "Born"), h("b", null, () => String(p().born || ""))),
+            h("div", { class: "field" }, h("span", { class: "muted" }, "Status"), h("span", { class: "badge" }, "loaded"))));
+      }
+
+      function Skeleton() {
+        return h("div", { class: "stack", style: "gap:16px" },
+          h("div", { class: "row", style: "gap:14px" },
+            h("div", { class: "skel", style: "width:52px;height:52px;border-radius:14px" }),
+            h("div", { class: "stack", style: "gap:8px" },
+              h("div", { class: "skel", style: "width:160px;height:18px" }),
+              h("div", { class: "skel", style: "width:110px;height:13px" }))),
+          h("div", { class: "skel", style: "width:100%;height:13px" }),
+          h("div", { class: "skel", style: "width:80%;height:13px" }));
+      }
+
+      render(App, document.getElementById("app"));
+    </script>
+  </body>
+</html>

@@ -6,6 +6,8 @@
   "main": "./src/index.js",
   "module": "./src/index.js",
   "types": "./src/index.d.ts",
+  "unpkg": "./dist/risbo.global.js",
+  "jsdelivr": "./dist/risbo.global.js",
   "exports": {
     ".": {
       "types": "./src/index.d.ts",
@@ -13,18 +15,23 @@
     },
     "./reactivity": "./src/reactivity.js",
     "./router": "./src/router.js",
-    "./store": "./src/store.js"
+    "./store": "./src/store.js",
+    "./server": "./src/server.js",
+    "./dist/*": "./dist/*"
   },
   "files": [
     "src",
+    "dist",
     "README.md",
     "LICENSE"
   ],
   "sideEffects": false,
   "scripts": {
     "test": "node --test",
+    "build": "node scripts/build.js",
     "dev": "node scripts/serve.js examples",
-    "example": "node scripts/serve.js examples"
+    "example": "node scripts/serve.js examples",
+    "prepublishOnly": "node scripts/build.js && node --test"
   },
   "keywords": [
     "framework",

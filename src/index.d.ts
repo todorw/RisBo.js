@@ -22,9 +22,18 @@ export function signal<T>(value: T, options?: SignalOptions<T>): Signal<T>;
 export function signal<T = undefined>(): Signal<T | undefined>;
 
 export function computed<T>(fn: () => T, options?: { equals?: (a: T, b: T) => boolean }): Computed<T>;
+export function createMemo<T>(fn: () => T, options?: { equals?: (a: T, b: T) => boolean }): Computed<T>;
 
-/** Run a side effect and re-run it when its dependencies change. */
-export function effect(fn: () => void | (() => void)): () => void;
+/** Run a side effect and re-run it when its dependencies change. The callback
+ *  receives the previous return value; returning a function registers cleanup. */
+export function effect<T>(fn: (prev: T | undefined) => T | void | (() => void), value?: T): () => void;
+
+/** Build an effect/computed body that tracks only the listed dependencies. */
+export function on<T, R>(
+  deps: (() => T) | Array<() => any>,
+  fn: (value: T | any[], prev: R | undefined) => R,
+  options?: { defer?: boolean }
+): (prev: R | undefined) => R;
 
 /** Batch multiple writes so dependents update once. */
 export function batch<T>(fn: () => T): T;
@@ -40,6 +49,32 @@ export function createRoot<T>(fn: (dispose: () => void) => T): T;
 
 export function getOwner(): unknown;
 export function runWithOwner<T>(owner: unknown, fn: () => T): T;
+
+// Context
+export interface Context<T> {
+  id: symbol;
+  defaultValue: T;
+  provide<R>(value: T, fn: () => R): R;
+}
+export function createContext<T>(defaultValue: T): Context<T>;
+export function useContext<T>(context: Context<T>): T;
+export function provideContext<T, R>(context: Context<T>, value: T, fn: () => R): R;
+
+// Resource — reactive async data
+export interface Resource<T> {
+  (): T | undefined;
+  loading(): boolean;
+  error(): unknown;
+  latest(): T | undefined;
+  mutate(value: T | undefined): void;
+  refetch(): void;
+}
+export function resource<T>(fetcher: () => Promise<T> | T, options?: { initialValue?: T }): Resource<T>;
+export function resource<T, S>(
+  source: () => S,
+  fetcher: (source: S) => Promise<T> | T,
+  options?: { initialValue?: T }
+): Resource<T>;
 
 // ---------------------------------------------------------------------------
 // DOM
@@ -89,13 +124,53 @@ export function For<T>(props: {
   render?: (item: T, index: number) => Node | Child;
 }): Node;
 
+export function Index<T>(props: {
+  each: T[] | (() => T[]);
+  children?: (item: () => T, index: number) => Node | Child;
+  render?: (item: () => T, index: number) => Node | Child;
+}): Node;
+
+export function Dynamic<P>(props: { component: ((props: P) => Child) | (() => (props: P) => Child) } & P): Child;
+
+export function ErrorBoundary(props: {
+  fallback: Child | ((error: any, reset: () => void) => Child);
+  children?: Child | (() => Child);
+}): Child;
+
+export function Portal(props: { mount?: Element; children?: Child }): Node;
+
+/** Defer loading a component until it renders (code-splitting). */
+export function lazy<P>(
+  loader: () => Promise<{ default: (props: P) => Child } | ((props: P) => Child)>
+): (props: P & { fallback?: Child | (() => Child) }) => Child;
+
+/** Shallow-merge prop objects (later sources win). */
+export function mergeProps(...sources: Array<Record<string, unknown> | null | undefined>): Record<string, unknown>;
+
+/** Split a props object into groups by key, returning each group plus the rest. */
+export function splitProps<T extends Record<string, unknown>>(
+  props: T,
+  ...keyGroups: Array<Array<keyof T>>
+): Record<string, unknown>[];
+
+// Two-way binding helpers
+export function model(sig: Signal<string>): { value: () => string; "on:input": (e: any) => void };
+export function modelChecked(sig: Signal<boolean>): { checked: () => boolean; "on:change": (e: any) => void };
+
+// Server-side rendering
+export function renderToString(component: ((props?: any) => Child) | Node): string;
+
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
 
 export interface Route {
   path: string;
-  component: (props: { params: Record<string, string>; navigate: Navigate }) => Child;
+  component: (props: {
+    params: Record<string, string>;
+    query: Record<string, string>;
+    navigate: Navigate;
+  }) => Child;
 }
 
 export interface RouteMatch {
@@ -109,10 +184,20 @@ export function matchRoute(routes: Route[], path: string): RouteMatch | null;
 
 export interface Router {
   path: Signal<string>;
+  pathname: Computed<string>;
   navigate: Navigate;
   matched: Computed<RouteMatch | null>;
+  params: Computed<Record<string, string>>;
+  query: Computed<Record<string, string>>;
   View: () => Child;
-  Link: (props: { href: string; children?: Child; [key: string]: unknown }) => Node;
+  Link: (props: {
+    href: string;
+    children?: Child;
+    class?: string;
+    activeClass?: string;
+    end?: boolean;
+    [key: string]: unknown;
+  }) => Node;
 }
 
 export function createRouter(

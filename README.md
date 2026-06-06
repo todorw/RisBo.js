@@ -29,7 +29,7 @@ render(Counter, document.getElementById("app"));
 - **Fine-grained reactivity.** Updates touch only the DOM that changed — not whole component trees.
 - **No build step required.** It's standard ES modules. Drop it in a `<script type="module">` and go.
 - **Tiny & dependency-free.** The entire runtime is small enough to read in one sitting.
-- **Familiar, minimal API.** `signal`, `computed`, `effect`, components, `Show`, `For`, a router and a store. That's most of it.
+- **Batteries included.** Signals, components, control flow, **context**, **async resources**, **error boundaries**, **portals**, a **router**, a **store** and **server rendering** — all in one place.
 - **Real disposal.** Effects, components and list items clean up after themselves automatically.
 
 ## Quick start
@@ -57,6 +57,23 @@ Run the bundled examples locally:
 ```bash
 npm run dev      # serves ./examples at http://localhost:5173
 npm test         # runs the test suite (node --test)
+npm run build    # builds dist/risbo.js (ESM) + dist/risbo.global.js (CDN)
+```
+
+### From a CDN — no install, no build
+
+```html
+<!-- ES module -->
+<script type="module">
+  import { signal, h, render } from "https://esm.sh/risbo";
+  // …
+</script>
+
+<!-- Or the global build: window.RisBo -->
+<script src="https://unpkg.com/risbo/dist/risbo.global.js"></script>
+<script>
+  const { signal, h, render } = RisBo;
+</script>
 ```
 
 ## Core concepts
@@ -100,7 +117,43 @@ effect(() => {
 });
 ```
 
-Use `batch()` to coalesce multiple writes into a single update, and `untrack()` to read without subscribing.
+Use `batch()` to coalesce multiple writes into a single update, and `untrack()` to read without subscribing. For explicit dependencies, wrap the body with `on`:
+
+```js
+import { on } from "risbo";
+
+// Re-runs only when `userId` changes; `defer` skips the first run.
+effect(on(userId, (id, prevId) => load(id), { defer: true }));
+```
+
+### Async data with `resource`
+
+A **resource** wraps an async source. It re-fetches when its reactive input changes and exposes loading/error state.
+
+```js
+import { resource, signal } from "risbo";
+
+const userId = signal(1);
+const user = resource(() => userId(), (id) => fetch(`/api/users/${id}`).then((r) => r.json()));
+
+user();         // latest value (undefined until resolved)
+user.loading(); // true while fetching
+user.error();   // any thrown/rejected error
+user.refetch(); // force a reload
+```
+
+### Context
+
+Pass values down the tree without threading props through every component.
+
+```js
+import { createContext, useContext } from "risbo";
+
+const Theme = createContext("light");
+
+Theme.provide("dark", () => h(App));   // anywhere inside:
+const theme = useContext(Theme);        // "dark"
+```
 
 ### Components & the renderer
 
@@ -132,6 +185,56 @@ h(For, { each: () => todos(), by: (t) => t.id },
 h(Switch, { fallback: () => h(NotFound) },
   h(Match, { when: () => tab() === "a" }, () => h(PanelA)),
   h(Match, { when: () => tab() === "b" }, () => h(PanelB)));
+
+// Index-keyed list (rows reused by position, item exposed as a signal)
+h(Index, { each: () => rows() }, (row) => h("input", model(row)));
+
+// Component chosen at runtime
+h(Dynamic, { component: () => widgets[kind()] });
+
+// Catch render errors (pass children as a thunk)
+h(ErrorBoundary, { fallback: (err, reset) => h(Oops, { err, reset }) }, () => h(Risky));
+
+// Render elsewhere in the DOM (modals, tooltips)
+h(Portal, { mount: document.body }, h(Modal));
+
+// Code-split a component; shows `fallback` while it loads
+const Settings = lazy(() => import("./Settings.js"));
+h(Settings, { fallback: () => h(Spinner) });
+```
+
+### Component prop helpers
+
+```js
+import { mergeProps, splitProps } from "risbo";
+
+function Button(props) {
+  props = mergeProps({ type: "button" }, props);       // defaults
+  const [local, rest] = splitProps(props, ["children"]); // pull some out
+  return h("button", rest, local.children);
+}
+```
+
+### Two-way binding
+
+`model` / `modelChecked` return props you spread onto an input.
+
+```js
+const name = signal("");
+h("input", model(name));                          // text ↔ signal
+
+const agree = signal(false);
+h("input", { type: "checkbox", ...modelChecked(agree) });
+```
+
+### Server-side rendering
+
+Render the exact same components to an HTML string — no browser needed.
+
+```js
+import { renderToString } from "risbo/server";
+
+const html = renderToString(App); // "<div class=\"app\">…</div>"
 ```
 
 ### Routing
@@ -147,11 +250,13 @@ const router = createRouter([
 const { Link, View } = router;
 
 const App = () => h("div", null,
-  h("nav", null, Link({ href: "/", children: "Home" })),
+  h("nav", null, Link({ href: "/", children: "Home" })), // adds `active` class + aria-current when matched
   View());
 
 render(App, document.getElementById("app"));
 ```
+
+The router also exposes reactive `pathname`, `params` and `query` accessors, and route components receive `{ params, query, navigate }`. Mount under a path prefix with the `base` option.
 
 ### Stores
 
@@ -183,6 +288,10 @@ cart.add({ id: 1 }); // reactive: any effect reading cart.items re-runs
 | `untrack(fn)` | Read reactive values without subscribing. |
 | `onCleanup(fn)` | Run `fn` when the scope is disposed or re-run. |
 | `createRoot(fn)` | Create an explicit disposal boundary. |
+| `createMemo(fn)` | Alias of `computed`. |
+| `on(deps, fn, opts?)` | Explicit-dependency effect/computed body. |
+| `createContext` / `useContext` | Dependency injection along the owner tree. |
+| `resource(source?, fetcher)` | Reactive async data with loading/error state. |
 
 ### DOM
 | Export | Description |
@@ -190,13 +299,17 @@ cart.add({ id: 1 }); // reactive: any effect reading cart.items re-runs
 | `h(type, props, ...children)` | Hyperscript factory (also a JSX pragma). |
 | `Fragment` | Group children without a wrapper element. |
 | `render(component, container)` | Mount into the DOM. Returns a disposer. |
-| `onMount(fn)` | Run after the render is committed. |
-| `Show`, `Switch`, `Match`, `For` | Control-flow components. |
+| `onMount(fn)` / `onCleanup(fn)` | Lifecycle hooks. |
+| `Show`, `Switch`, `Match`, `For`, `Index` | Control-flow components. |
+| `Dynamic`, `ErrorBoundary`, `Portal`, `lazy` | Runtime component, error catching, out-of-tree & code-split rendering. |
+| `model`, `modelChecked` | Two-way binding helpers. |
+| `mergeProps`, `splitProps` | Component prop utilities. |
 
-### Router & Store
+### Server, Router & Store
 | Export | Description |
 | --- | --- |
-| `createRouter(routes, options?)` | Returns `{ path, navigate, matched, View, Link }`. |
+| `renderToString(component)` | Render components to an HTML string (`risbo/server`). |
+| `createRouter(routes, options?)` | Returns `{ path, pathname, navigate, matched, params, query, View, Link }`. |
 | `matchRoute(routes, path)` | Pure route matcher (path params + `*` wildcard). |
 | `createStore(initial, actions?)` | Reactive object store. |
 
@@ -217,7 +330,7 @@ const App = () => {
 
 ## Examples
 
-The [`examples/`](./examples) folder contains runnable apps — a counter, a todo app (store + keyed lists + filters), and a router demo. Start them with `npm run dev`.
+The [`examples/`](./examples) folder contains a polished landing page plus runnable apps — a counter, a todo app (store + keyed lists + two-way binding), an async-data demo (`resource` with loading/error/refetch), and a router demo. Start them with `npm run dev` and open <http://localhost:5173>.
 
 ## Design notes
 
@@ -229,13 +342,15 @@ The [`examples/`](./examples) folder contains runnable apps — a counter, a tod
 
 ```
 src/
-  reactivity.js   signals, computeds, effects, batching, ownership
-  dom.js          hyperscript renderer + Show / Switch / For
+  reactivity.js   signals, computeds, effects, batching, ownership, context, resource
+  dom.js          hyperscript renderer + Show / Switch / For / Index / Dynamic / ErrorBoundary / Portal
+  server.js       renderToString (SSR)
   router.js       history-based router + matchRoute
   store.js        reactive object store
   index.js        public API
-test/             node:test suite (reactivity, dom, router, store)
-examples/         runnable browser demos
+scripts/build.js  zero-dep bundler → dist/ (ESM + global/CDN builds)
+test/             node:test suite (56 tests: reactivity, dom, context, server, router, store, dist, utils)
+examples/         landing page + runnable browser demos
 ```
 
 ## License

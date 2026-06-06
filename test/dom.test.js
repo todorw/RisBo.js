@@ -4,7 +4,8 @@ import { installDOM } from "../scripts/dom-shim.js";
 
 installDOM();
 
-const { h, render, Show, For } = await import("../src/dom.js");
+const { h, render, Show, For, Index, Dynamic, ErrorBoundary, Portal, model, modelChecked, lazy } =
+  await import("../src/dom.js");
 const { signal } = await import("../src/reactivity.js");
 
 function mount(component) {
@@ -154,4 +155,122 @@ test("render dispose tears down reactivity", () => {
   assert.equal(container.textContent, "");
   count.set(2);
   assert.equal(runs, 2); // disposed: effect no longer runs
+});
+
+test("classList toggles classes reactively", () => {
+  const active = signal(false);
+  const { container } = mount(() =>
+    h("div", { class: "box", classList: { active: () => active(), big: true } })
+  );
+  const div = container.firstChild;
+  const classes = () => new Set(div.getAttribute("class").split(/\s+/).filter(Boolean));
+  assert.deepEqual(classes(), new Set(["box", "big"]));
+  active.set(true);
+  assert.deepEqual(classes(), new Set(["box", "big", "active"]));
+  active.set(false);
+  assert.deepEqual(classes(), new Set(["box", "big"]));
+});
+
+test("model gives two-way text binding", () => {
+  const name = signal("a");
+  const { container } = mount(() => h("input", { type: "text", ...model(name) }));
+  const input = container.firstChild;
+  assert.equal(input.value, "a");
+  input.fire("input", { target: { value: "bob" } });
+  assert.equal(name(), "bob");
+  name.set("carol");
+  assert.equal(input.value, "carol"); // signal -> input
+});
+
+test("modelChecked gives two-way checkbox binding", () => {
+  const done = signal(false);
+  const { container } = mount(() =>
+    h("input", { type: "checkbox", ...modelChecked(done) })
+  );
+  const input = container.firstChild;
+  assert.equal(input.checked, false);
+  input.fire("change", { target: { checked: true } });
+  assert.equal(done(), true);
+});
+
+test("Index renders and updates rows in place", () => {
+  const items = signal(["a", "b"]);
+  const { container } = mount(() =>
+    h("ul", null, h(Index, { each: () => items() }, (item) => h("li", null, () => item())))
+  );
+  const ul = container.firstChild;
+  const labels = () => ul.childNodes.filter((n) => n.tagName === "LI").map((n) => n.textContent);
+  assert.deepEqual(labels(), ["a", "b"]);
+  items.set(["x", "y", "z"]);
+  assert.deepEqual(labels(), ["x", "y", "z"]);
+  items.set(["only"]);
+  assert.deepEqual(labels(), ["only"]);
+});
+
+test("Dynamic renders a reactive component", () => {
+  const A = () => h("span", null, "A");
+  const B = () => h("span", null, "B");
+  const which = signal(A);
+  const { container } = mount(() => h("div", null, h(Dynamic, { component: () => which() })));
+  const div = container.firstChild;
+  assert.equal(div.textContent, "A");
+  which.set(() => B);
+  assert.equal(div.textContent, "B");
+});
+
+test("ErrorBoundary catches render errors and can reset", () => {
+  let shouldThrow = true; // non-reactive: only reset() re-renders
+  const { container } = mount(() =>
+    h(
+      "div",
+      null,
+      h(
+        ErrorBoundary,
+        {
+          fallback: (err, reset) =>
+            h(
+              "button",
+              {
+                "on:click": () => {
+                  shouldThrow = false;
+                  reset();
+                },
+              },
+              () => `caught: ${err.message}`
+            ),
+        },
+        () => {
+          if (shouldThrow) throw new Error("kaboom");
+          return h("p", null, "safe");
+        }
+      )
+    )
+  );
+  const div = container.firstChild;
+  assert.match(div.textContent, /caught: kaboom/);
+  const button = div.childNodes.find((n) => n.tagName === "BUTTON");
+  button.fire("click"); // reset -> re-render children, now safe
+  assert.equal(div.textContent, "safe");
+});
+
+test("lazy shows a fallback then the loaded component", async () => {
+  const Loaded = () => h("span", null, "loaded");
+  const Settings = lazy(() => Promise.resolve({ default: Loaded }));
+  const { container } = mount(() =>
+    h("div", null, h(Settings, { fallback: () => h("span", null, "loading…") }))
+  );
+  const div = container.firstChild;
+  assert.equal(div.textContent, "loading…");
+  await new Promise((r) => setTimeout(r, 0));
+  assert.equal(div.textContent, "loaded");
+});
+
+test("Portal renders children into another mount point", () => {
+  const target = document.createElement("div");
+  const { dispose } = mount(() =>
+    h("div", null, h(Portal, { mount: target }, h("span", null, "ported")))
+  );
+  assert.equal(target.textContent, "ported");
+  dispose();
+  assert.equal(target.textContent, ""); // cleaned up on dispose
 });

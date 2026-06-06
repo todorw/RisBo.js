@@ -205,13 +205,19 @@ export function computed(fn, options = {}) {
  * @param {(prev:any) => any} fn
  * @returns {() => void} stop the effect
  */
-export function effect(fn) {
+export function effect(fn, value) {
   const node = new Computation(
-    () => {
-      const result = fn();
-      if (typeof result === "function") onCleanup(result);
+    (prev) => {
+      const result = fn(prev);
+      // A returned function is treated as a cleanup, leaving `prev` unchanged;
+      // any other value becomes the `prev` passed to the next run.
+      if (typeof result === "function") {
+        onCleanup(result);
+        return prev;
+      }
+      return result;
     },
-    undefined,
+    value,
     false
   );
   node.run();
@@ -249,6 +255,29 @@ export function untrack(fn) {
   } finally {
     Listener = prev;
   }
+}
+
+/**
+ * Build an effect/computed body that only tracks the given dependencies, and
+ * runs `fn` untracked with their values. Use with `effect`/`computed`:
+ *   effect(on(count, (value, prev) => console.log(value, prev)));
+ *   effect(on([a, b], ([av, bv]) => …, { defer: true })); // skip first run
+ * @param {Function|Function[]} deps
+ * @param {(values:any, prev:any) => any} fn
+ * @param {{ defer?: boolean }} [options]
+ */
+export function on(deps, fn, options = {}) {
+  const list = Array.isArray(deps) ? deps : [deps];
+  let deferred = options.defer === true;
+  return (prev) => {
+    const values = list.map((dep) => dep());
+    const value = list.length === 1 ? values[0] : values;
+    if (deferred) {
+      deferred = false;
+      return prev;
+    }
+    return untrack(() => fn(value, prev));
+  };
 }
 
 /**
@@ -319,4 +348,129 @@ export function createChildScope(owner) {
 /** Internal: dispose a scope created via {@link createChildScope}. */
 export function disposeScope(scope) {
   disposeNode(scope);
+}
+
+// -----------------------------------------------------------------------------
+// Memo — an alias for `computed`, for those who prefer the name.
+// -----------------------------------------------------------------------------
+
+export { computed as createMemo };
+
+// -----------------------------------------------------------------------------
+// Context — dependency injection along the owner tree
+// -----------------------------------------------------------------------------
+
+/**
+ * Create a context with a default value.
+ *   const Theme = createContext("light");
+ *   Theme.provide("dark", () => h(App));   // inside: useContext(Theme) === "dark"
+ * @template T
+ * @param {T} defaultValue
+ */
+export function createContext(defaultValue) {
+  const context = { id: Symbol("context"), defaultValue };
+  context.provide = (value, fn) => provideContext(context, value, fn);
+  return context;
+}
+
+/**
+ * Read the nearest provided value for a context (or its default).
+ * @template T
+ * @param {{ id: symbol, defaultValue: T }} context
+ * @returns {T}
+ */
+export function useContext(context) {
+  let owner = Owner;
+  while (owner) {
+    if (owner.contexts && context.id in owner.contexts) return owner.contexts[context.id];
+    owner = owner.owner;
+  }
+  return context.defaultValue;
+}
+
+/**
+ * Provide a context value to everything created synchronously inside `fn`.
+ * @template T
+ * @param {{ id: symbol }} context
+ * @param {*} value
+ * @param {() => T} fn
+ * @returns {T}
+ */
+export function provideContext(context, value, fn) {
+  const prevOwner = Owner;
+  const scope = new Scope();
+  scope.contexts = { ...(prevOwner && prevOwner.contexts), [context.id]: value };
+  Owner = scope;
+  try {
+    return fn();
+  } finally {
+    Owner = prevOwner;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Resource — reactive async data
+// -----------------------------------------------------------------------------
+
+/**
+ * Track an async source. Re-fetches when the reactive `source` changes and
+ * exposes loading / error state.
+ *
+ *   const user = resource(() => userId(), (id) => fetch(`/u/${id}`).then(r => r.json()));
+ *   user();          // latest value (undefined until resolved)
+ *   user.loading();  // boolean
+ *   user.error();    // any thrown/rejected error
+ *   user.refetch();  // force a reload
+ *
+ * `resource(fetcher)` (no source) fetches once on creation.
+ * @template T, S
+ * @param {(() => S) | ((s: S) => Promise<T>)} source
+ * @param {(s: S) => Promise<T> | T} [fetcher]
+ * @param {{ initialValue?: T }} [options]
+ */
+export function resource(source, fetcher, options = {}) {
+  if (typeof fetcher !== "function") {
+    fetcher = source;
+    source = () => undefined;
+  }
+  const read = typeof source === "function" ? source : () => source;
+
+  const data = signal(options.initialValue);
+  const loading = signal(false);
+  const error = signal(undefined);
+  let version = 0;
+
+  const load = (input) => {
+    const current = ++version;
+    loading.set(true);
+    error.set(undefined);
+    // Run the fetcher eagerly but untracked, so its internal reads don't
+    // subscribe the resource's effect.
+    Promise.resolve(untrack(() => fetcher(input))).then(
+        (value) => {
+          if (current !== version) return;
+          batch(() => {
+            data.update(() => value); // store literally (value may be a function)
+            loading.set(false);
+          });
+        },
+        (err) => {
+          if (current !== version) return;
+          batch(() => {
+            error.set(err);
+            loading.set(false);
+          });
+        }
+      );
+  };
+
+  effect(() => load(read()));
+
+  const accessor = () => data();
+  accessor.loading = () => loading();
+  accessor.error = () => error();
+  accessor.latest = () => data();
+  accessor.mutate = (value) => data.update(() => value);
+  accessor.refetch = () => load(untrack(read));
+  return accessor;
 }
