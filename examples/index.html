@@ -3,6 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M10.4 2 L30 2 L30 30 L2 30 L2 10.4 Z' fill='none' stroke='%23e2924a' stroke-width='2.6'/%3E%3Ccircle cx='16' cy='16' r='2.6' fill='%23e2924a'/%3E%3C/svg%3E" />
+    <meta name="theme-color" id="theme-color" content="#0a0f0c" />
     <title>RisBo.js — a fast, fine-grained reactive UI framework</title>
     <meta name="description" content="RisBo.js is a fast, fine-grained reactive UI framework for JavaScript — signals wired straight to the DOM, components, routing, a store and SSR, with zero dependencies." />
     <link rel="stylesheet" href="/examples/style.css" />
@@ -26,6 +28,10 @@
       .demo-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
       .demo-head .dot-row i { background: var(--success); }
       .demo-head .dot-row { color: var(--success); }
+      .trace { width: 100%; height: 40px; margin-top: 14px; overflow: visible; }
+      .trace path { fill: none; stroke: var(--brand); stroke-width: 1.6; stroke-linejoin: round; }
+      .trace .trace-mid { stroke: var(--border); stroke-width: 1; stroke-dasharray: 2 3; }
+      .trace .trace-dot { fill: var(--brand); }
 
       .features { padding: 56px 0; }
       .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--border);
@@ -245,7 +251,41 @@ const List = () =>
 
     <!-- Live demo (dogfooding RisBo) -->
     <script type="module">
-      import { signal, computed, h, render } from "/src/index.js";
+      import { signal, computed, effect, h, render } from "/src/index.js";
+
+      // A tiny scope trace of the counter's own history — real values, drawn
+      // with a reactive `d` attribute (h() namespaces svg/path correctly).
+      function ScopeTrace(count) {
+        const history = signal([]);
+        effect(() => history.update((h) => [...h, count()].slice(-14)));
+
+        const W = 220, H = 34, PAD = 5;
+        const geometry = computed(() => {
+          const values = history();
+          if (values.length < 2) return { path: "", dot: null };
+          const min = Math.min(...values), max = Math.max(...values);
+          const span = Math.max(max - min, 1);
+          const stepX = W / (values.length - 1);
+          const y = (v) => PAD + (H - 2 * PAD) * (1 - (v - min) / span);
+          let path = `M0 ${y(values[0]).toFixed(1)}`;
+          values.forEach((v, i) => {
+            if (i === 0) return;
+            const x = (i * stepX).toFixed(1);
+            path += ` L${x} ${y(values[i - 1]).toFixed(1)} L${x} ${y(v).toFixed(1)}`;
+          });
+          return { path, dot: [W, y(values[values.length - 1])] };
+        });
+
+        return h("svg", { class: "trace", viewBox: `0 0 ${W} ${H}`, "aria-hidden": "true" },
+          h("line", { x1: 0, y1: H / 2, x2: W, y2: H / 2, class: "trace-mid" }),
+          h("path", { d: () => geometry().path }),
+          h("circle", {
+            r: 2.6,
+            class: "trace-dot",
+            cx: () => (geometry().dot ? geometry().dot[0] : -10),
+            cy: () => (geometry().dot ? geometry().dot[1] : -10),
+          }));
+      }
 
       function HeroCounter() {
         const count = signal(3);
@@ -258,7 +298,8 @@ const List = () =>
             h("span", { class: "dot-row" }, h("i"), "LIVE · CH1"),
             h("span", { class: "badge" }, () => parity())),
           h("div", { class: "readout" }, () => String(count())),
-          h("div", { class: "row", style: "justify-content:center;margin-top:18px" },
+          ScopeTrace(count),
+          h("div", { class: "row", style: "justify-content:center;margin-top:16px" },
             btn("−", () => count.set((n) => n - 1)),
             btn("+ Increment", () => count.set((n) => n + 1), "primary"),
             btn("Reset", () => count.set(0), "ghost")));
@@ -281,7 +322,11 @@ const List = () =>
       const effectiveTheme = () =>
         root.getAttribute("data-theme") ||
         (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
-      const paint = () => (themeBtn.textContent = effectiveTheme() === "light" ? moon : sun);
+      const metaTheme = document.getElementById("theme-color");
+      const paint = () => {
+        themeBtn.textContent = effectiveTheme() === "light" ? moon : sun;
+        metaTheme.setAttribute("content", effectiveTheme() === "light" ? "#eef2ee" : "#0a0f0c");
+      };
       paint();
       themeBtn.addEventListener("click", () => {
         const next = effectiveTheme() === "light" ? "dark" : "light";

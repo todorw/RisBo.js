@@ -80,10 +80,11 @@ class DocumentFragment extends Node {
 }
 
 class Element extends Node {
-  constructor(tag) {
+  constructor(tag, namespaceURI = "http://www.w3.org/1999/xhtml") {
     super();
     this.nodeType = ELEMENT_NODE;
     this.tagName = tag.toUpperCase();
+    this.namespaceURI = namespaceURI;
     this.attributes = {};
     this.style = {};
     this._listeners = {};
@@ -114,6 +115,7 @@ class Element extends Node {
 export function installDOM() {
   globalThis.document = {
     createElement: (tag) => new Element(tag),
+    createElementNS: (ns, tag) => new Element(tag, ns),
     createTextNode: (data) => new Text(data),
     createComment: (data) => new Comment(data),
     createDocumentFragment: () => new DocumentFragment(),

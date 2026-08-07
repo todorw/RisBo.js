@@ -11,11 +11,19 @@
     root.getAttribute("data-theme") ||
     (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
 
+  const metaTheme = document.getElementById("theme-color");
+  const paintMeta = () => {
+    if (metaTheme) metaTheme.setAttribute("content", effectiveTheme() === "light" ? "#eef2ee" : "#0a0f0c");
+  };
+
   const btn = document.createElement("button");
   btn.className = "icon ghost";
   btn.setAttribute("aria-label", "Toggle theme");
   btn.style.cssText = "position:fixed;top:18px;right:18px;z-index:50";
-  const paint = () => (btn.textContent = effectiveTheme() === "light" ? "☾" : "☀");
+  const paint = () => {
+    btn.textContent = effectiveTheme() === "light" ? "☾" : "☀";
+    paintMeta();
+  };
   paint();
   btn.addEventListener("click", () => {
     const next = effectiveTheme() === "light" ? "dark" : "light";

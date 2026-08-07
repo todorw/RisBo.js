@@ -96,11 +96,16 @@ class SFragment extends SNode {
   }
 }
 
+// A handful of SVG tags are camelCase and must stay that way — the HTML
+// parser's foreign-content rules are case-sensitive for these once this
+// string is parsed back into a real document.
+const PRESERVE_CASE = new Set(["linearGradient", "radialGradient", "clipPath", "textPath", "foreignObject"]);
+
 class SElement extends SNode {
   constructor(tag) {
     super();
     this.nodeType = ELEMENT_NODE;
-    this.tagName = tag.toLowerCase();
+    this.tagName = PRESERVE_CASE.has(tag) ? tag : tag.toLowerCase();
     this.attributes = {};
     this.style = {};
     this.props = {};
@@ -129,6 +134,7 @@ class SElement extends SNode {
 function makeDocument() {
   const doc = {
     createElement: (tag) => new SElement(tag),
+    createElementNS: (_ns, tag) => new SElement(tag),
     createTextNode: (data) => new SText(data),
     createComment: (data) => new SComment(data),
     createDocumentFragment: () => new SFragment(),

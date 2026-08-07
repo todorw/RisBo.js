@@ -32,6 +32,18 @@ test("self-closes void elements and reflects value", () => {
   assert.equal(html, '<input type="text" value="hi">');
 });
 
+test("renders svg elements, preserving camelCase tag names", () => {
+  const html = renderToString(() =>
+    h(
+      "svg",
+      { viewBox: "0 0 10 10" },
+      h("defs", null, h("linearGradient", { id: "g" })),
+      h("path", { d: "M0 0" })
+    )
+  );
+  assert.equal(html, '<svg viewBox="0 0 10 10"><defs><linearGradient id="g"></linearGradient></defs><path d="M0 0"></path></svg>');
+});
+
 test("renders control flow (Show + For)", () => {
   const html = renderToString(() =>
     h(

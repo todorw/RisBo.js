@@ -44,6 +44,20 @@ test("reactive attribute binding", () => {
   assert.equal(div.getAttribute("class"), "on");
 });
 
+test("svg elements are created in the SVG namespace", () => {
+  const level = signal(4);
+  const { container } = mount(() =>
+    h("svg", { viewBox: "0 0 10 10" }, h("path", { d: () => `M0 ${level()}` }))
+  );
+  const svg = container.firstChild;
+  assert.equal(svg.namespaceURI, "http://www.w3.org/2000/svg");
+  const path = svg.childNodes[0];
+  assert.equal(path.namespaceURI, "http://www.w3.org/2000/svg");
+  assert.equal(path.getAttribute("d"), "M0 4");
+  level.set(9);
+  assert.equal(path.getAttribute("d"), "M0 9"); // still reactive inside svg
+});
+
 test("event handlers fire and mutate state", () => {
   const count = signal(0);
   const { container } = mount(() =>

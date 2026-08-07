@@ -35,8 +35,20 @@ export function createComponent(Component, props) {
   return untrack(() => Component(props));
 }
 
+// h() has no way to know an element is "inside an svg" — children are built
+// bottom-up (a nested h("path", ...) call runs before its h("svg", ...)
+// parent exists to say so) — so SVG tags are namespaced by name instead, the
+// same pragmatic approach most small renderers take.
+const SVG_NS = "http://www.w3.org/2000/svg";
+const SVG_TAGS = new Set([
+  "svg", "path", "circle", "rect", "line", "polyline", "polygon", "ellipse", "g",
+  "defs", "use", "symbol", "text", "tspan", "textPath", "linearGradient",
+  "radialGradient", "stop", "clipPath", "mask", "pattern", "marker", "image",
+  "foreignObject",
+]);
+
 function createElement(tag, props) {
-  const el = document.createElement(tag);
+  const el = SVG_TAGS.has(tag) ? document.createElementNS(SVG_NS, tag) : document.createElement(tag);
   for (const key in props) {
     if (key === "children") continue;
     setProp(el, key, props[key]);
