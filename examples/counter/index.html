@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -29,7 +29,7 @@
             h("div", { class: "spread" },
               h("span", { class: "eyebrow" }, "Counter"),
               h("span", { class: "badge" }, () => `${parity()} · ${sign()}`)),
-            h("div", { class: "count gradient-text" }, () => String(count())),
+            h("div", { class: "readout" }, () => String(count())),
             h("div", { class: "row", style: "justify-content:center" },
               step(-1),
               step(1, "primary"),

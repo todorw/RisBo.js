@@ -167,3 +167,80 @@ test("custom equality prevents updates", () => {
   point.set({ x: 1 });
   assert.equal(runs, 2);
 });
+
+test("computed equality stops the update before it reaches an effect", () => {
+  const n = signal(0);
+  const parity = computed(() => (n() % 2 === 0 ? "even" : "odd"), { equals: (a, b) => a === b });
+  let runs = 0;
+  effect(() => {
+    parity();
+    runs++;
+  });
+  assert.equal(runs, 1);
+  n.set(2); // still "even" — the effect must not rerun
+  n.set(4); // still "even"
+  assert.equal(runs, 1);
+  n.set(3); // "odd" — now it must rerun
+  assert.equal(runs, 2);
+});
+
+test("computed equality short-circuits a longer chain (diamond)", () => {
+  const n = signal(1);
+  const isEven = computed(() => n() % 2 === 0);
+  const label = computed(() => (isEven() ? "even" : "odd"));
+  const seen = [];
+  effect(() => seen.push(label()));
+  n.set(3); // isEven stays false → no rerun
+  n.set(5); // isEven stays false → no rerun
+  n.set(2); // isEven flips true → rerun
+  assert.deepEqual(seen, ["odd", "even"]);
+});
+
+test("computed stays lazy: unread computeds never recompute", () => {
+  const n = signal(0);
+  let runs = 0;
+  const doubled = computed(() => {
+    runs++;
+    return n() * 2;
+  });
+  n.set(1);
+  n.set(2);
+  n.set(3);
+  assert.equal(runs, 0); // never read yet
+  assert.equal(doubled(), 6);
+  assert.equal(runs, 1); // recomputes exactly once, with the latest value
+});
+
+test("batch runs every queued effect even if one of them throws", () => {
+  const a = signal(0);
+  const b = signal(0);
+  let bRan = false;
+  effect(() => {
+    if (a() >= 1) throw new Error("boom");
+  });
+  effect(() => {
+    b();
+    bRan = true;
+  });
+  bRan = false;
+  assert.throws(() => batch(() => {
+    a.set(1);
+    b.set(1);
+  }), /boom/);
+  assert.equal(bRan, true); // unrelated effect still ran despite the other throwing
+});
+
+test("batch combines multiple effect errors into an AggregateError", () => {
+  const a = signal(0);
+  effect(() => {
+    if (a() >= 1) throw new Error("first");
+  });
+  effect(() => {
+    if (a() >= 1) throw new Error("second");
+  });
+  assert.throws(() => a.set(1), (error) => {
+    assert.ok(error instanceof AggregateError);
+    assert.deepEqual(error.errors.map((e) => e.message).sort(), ["first", "second"]);
+    return true;
+  });
+});

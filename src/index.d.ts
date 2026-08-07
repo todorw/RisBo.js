@@ -190,6 +190,8 @@ export interface Router {
   params: Computed<Record<string, string>>;
   query: Computed<Record<string, string>>;
   View: () => Child;
+  /** Remove the router's `popstate` listener. */
+  dispose: () => void;
   Link: (props: {
     href: string;
     children?: Child;

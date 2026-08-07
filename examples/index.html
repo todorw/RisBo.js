@@ -1,46 +1,60 @@
 <!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>RisBo.js — a fast, fine-grained reactive UI framework</title>
-    <meta name="description" content="RisBo.js is a fast, fine-grained reactive UI framework for JavaScript — signals, components, routing, a store and SSR, with zero dependencies." />
+    <meta name="description" content="RisBo.js is a fast, fine-grained reactive UI framework for JavaScript — signals wired straight to the DOM, components, routing, a store and SSR, with zero dependencies." />
     <link rel="stylesheet" href="/examples/style.css" />
     <style>
-      .hero { padding: 84px 0 40px; }
-      .hero-grid { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 40px; align-items: center; }
-      .hero h1 { margin: 18px 0 0; }
-      .hero p.lead { font-size: 19px; color: var(--muted); margin-top: 20px; max-width: 30ch; }
-      .cta { display: flex; gap: 12px; margin-top: 30px; flex-wrap: wrap; }
-      .install { margin-top: 22px; display: inline-flex; align-items: center; gap: 12px;
-        font: 500 14px var(--mono); color: var(--muted); background: var(--panel-2);
-        border: 1px solid var(--border); border-radius: 12px; padding: 11px 14px; }
+      .hero { padding: 72px 0 44px; }
+      .hero-grid { display: grid; grid-template-columns: 1.08fr 0.92fr; gap: 44px; align-items: start; }
+      .spec-strip { display: flex; gap: 0; border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; width: fit-content; margin: 22px 0 26px; }
+      .spec-strip span { font: 600 12px var(--mono); letter-spacing: .04em; padding: 8px 12px; border-right: 1px solid var(--border); color: var(--muted); }
+      .spec-strip span:last-child { border-right: none; }
+      .spec-strip span b { color: var(--text); font-weight: 700; }
+      .hero h1 { margin: 0; }
+      .hero h1 .accent { display: block; }
+      .hero p.lead { font-size: 17.5px; color: var(--muted); margin-top: 18px; max-width: 46ch; }
+      .cta { display: flex; gap: 10px; margin-top: 26px; flex-wrap: wrap; }
+      .install { margin-top: 20px; display: inline-flex; align-items: center; gap: 10px;
+        font: 500 13.5px var(--mono); color: var(--muted); background: var(--panel-2);
+        border: 1px solid var(--border); border-radius: var(--r); padding: 10px 13px; }
       .install b { color: var(--text); font-weight: 600; }
       .install .copy { margin-left: 4px; }
-      .demo-card { padding: 26px; }
-      .features { padding: 60px 0; }
-      .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 36px; }
-      .feature { padding: 22px; }
-      .feature .ico { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center;
-        background: var(--grad-soft); border: 1px solid var(--border); color: var(--brand); margin-bottom: 14px; }
+      .demo-card { padding: 22px; }
+      .demo-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+      .demo-head .dot-row i { background: var(--success); }
+      .demo-head .dot-row { color: var(--success); }
+
+      .features { padding: 56px 0; }
+      .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--border);
+        border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; margin-top: 32px; }
+      .feature { padding: 22px; background: var(--panel); }
+      .feature .ico { width: 34px; height: 34px; color: var(--brand); margin-bottom: 16px; }
+      .feature .ico svg { width: 100%; height: 100%; display: block; }
       .feature h3 { margin-bottom: 6px; }
       .feature p { color: var(--muted); font-size: 14.5px; }
-      .section-head { text-align: center; max-width: 56ch; margin: 0 auto; }
-      .section-head p { color: var(--muted); margin-top: 12px; }
-      .showcase { padding: 30px 0 10px; }
-      .showcase-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 36px; align-items: stretch; }
-      .examples { padding: 64px 0; }
-      .ex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 32px; }
-      .ex { padding: 20px; text-decoration: none; display: block; transition: .18s; }
-      .ex:hover { border-color: var(--brand); transform: translateY(-3px); box-shadow: var(--shadow-lg); }
-      .ex .tag { font: 600 12px var(--mono); color: var(--brand); }
+      .section-head { max-width: 58ch; }
+      .section-head p { color: var(--muted); margin-top: 10px; font-size: 15px; }
+
+      .showcase { padding: 26px 0 12px; }
+      .showcase-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 30px; align-items: stretch; }
+
+      .examples { padding: 60px 0; }
+      .ex-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: var(--border);
+        border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; margin-top: 28px; }
+      .ex { padding: 20px; background: var(--panel); text-decoration: none; display: block; transition: background-color .14s; }
+      .ex:hover { background: var(--elevated); }
       .ex h3 { margin: 10px 0 4px; }
+      .ex h3 .arrow { color: var(--brand); }
       .ex p { color: var(--muted); font-size: 14px; }
+
       @media (max-width: 860px) {
-        .feature-grid, .ex-grid { grid-template-columns: 1fr 1fr; }
-        .showcase-grid { grid-template-columns: 1fr; }
+        .feature-grid { grid-template-columns: 1fr 1fr; }
+        .showcase-grid, .ex-grid { grid-template-columns: 1fr; }
       }
-      @media (max-width: 560px) { .feature-grid, .ex-grid { grid-template-columns: 1fr; } }
+      @media (max-width: 560px) { .feature-grid { grid-template-columns: 1fr; } }
     </style>
   </head>
   <body>
@@ -49,7 +63,7 @@
         <a class="brand" href="/"><span class="logo"></span> RisBo<span class="muted">.js</span></a>
         <nav class="nav-links">
           <a href="#features" class="hide-sm">Features</a>
-          <a href="#showcase" class="hide-sm">Showcase</a>
+          <a href="#showcase" class="hide-sm">How it works</a>
           <a href="#examples">Examples</a>
           <a href="https://github.com/TodorW/RisBo.js" class="hide-sm">GitHub</a>
           <button class="icon ghost" id="theme" title="Toggle theme" aria-label="Toggle theme"></button>
@@ -62,12 +76,19 @@
       <section class="hero">
         <div class="container hero-grid">
           <div>
-            <span class="pill">⚡ Zero dependencies · ~3 kB core</span>
-            <h1>Reactive UI,<br /><span class="gradient-text">refined.</span></h1>
-            <p class="lead">A fine-grained reactive framework. Change a signal — RisBo updates the exact DOM node that depends on it. No virtual DOM, no build step.</p>
+            <h1>Signal in,<span class="accent">node out.</span></h1>
+            <p class="lead">RisBo wires every signal straight to the one DOM node that reads it. Change the value and that node updates — nothing is diffed, nothing else re-runs, and there's no build step in between.</p>
+
+            <div class="spec-strip">
+              <span>REV <b>0.1.0</b></span>
+              <span>DEPS <b>0</b></span>
+              <span>CORE <b>~3&nbsp;kB</b></span>
+              <span>LICENSE <b>MIT</b></span>
+            </div>
+
             <div class="cta">
-              <a class="btn btn-primary" href="#examples">Explore examples →</a>
-              <a class="btn" href="https://github.com/TodorW/RisBo.js">Star on GitHub</a>
+              <a class="btn btn-primary" href="#showcase">See how it works →</a>
+              <a class="btn" href="https://github.com/TodorW/RisBo.js">View source</a>
             </div>
             <div class="install">
               <span class="faint">$</span> <b>npm i risbo</b>
@@ -75,7 +96,7 @@
             </div>
           </div>
 
-          <div class="card demo-card" id="hero-demo">
+          <div class="card demo-card scope" id="hero-demo">
             <!-- Live RisBo counter mounts here -->
           </div>
         </div>
@@ -86,39 +107,51 @@
         <div class="container">
           <div class="section-head">
             <span class="eyebrow">Why RisBo</span>
-            <h2>Everything you need, nothing you don't.</h2>
-            <p>A complete toolkit — reactivity, components, control flow, routing, a store and server rendering — in a library you can read end to end.</p>
+            <h2>Everything a UI needs, nothing it doesn't.</h2>
+            <p>Reactivity, components, control flow, routing, a store and server rendering — a toolkit small enough to read end to end in one sitting.</p>
           </div>
           <div class="feature-grid">
-            <div class="card feature">
-              <div class="ico">◑</div>
+            <div class="feature">
+              <div class="ico" aria-hidden="true">
+                <svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 17h5V6h6v11h5V6h4"/></svg>
+              </div>
               <h3>Fine-grained</h3>
-              <p>Updates touch only the text node or attribute that changed — not whole component trees.</p>
+              <p>Updates touch only the text node or attribute that depends on a signal — never a whole component tree.</p>
             </div>
-            <div class="card feature">
-              <div class="ico">⌘</div>
+            <div class="feature">
+              <div class="ico" aria-hidden="true">
+                <svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="2.5" cy="11" r="1.5"/><path d="M4 11h14"/><circle cx="11" cy="11" r="2.2"/><circle cx="19.5" cy="11" r="1.5"/></svg>
+              </div>
               <h3>No build step</h3>
-              <p>Standard ES modules. Drop it in a <code>&lt;script type="module"&gt;</code> and ship.</p>
+              <p>Standard ES modules, wired point to point. Drop it in a <code>&lt;script type="module"&gt;</code> and ship.</p>
             </div>
-            <div class="card feature">
-              <div class="ico">⊹</div>
+            <div class="feature">
+              <div class="ico" aria-hidden="true">
+                <svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 11h4l2-5 3 10 3-10 2 5h5"/></svg>
+              </div>
               <h3>Tiny &amp; fast</h3>
-              <p>No virtual DOM diffing. Bindings wire straight to the DOM at creation time.</p>
+              <p>No virtual DOM, no diffing pass. Bindings connect straight to the DOM at creation time.</p>
             </div>
-            <div class="card feature">
-              <div class="ico">⟲</div>
+            <div class="feature">
+              <div class="ico" aria-hidden="true">
+                <svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-linecap="round"><circle cx="11" cy="19" r="1.4" fill="currentColor" stroke="none"/><path d="M6.5 15a7 7 0 0 1 9 0" stroke-width="1.6"/><path d="M3 11.3a11.5 11.5 0 0 1 16 0" stroke-width="1.6"/></svg>
+              </div>
               <h3>Async built in</h3>
-              <p><code>resource()</code> tracks promises with loading and error state, and refetches reactively.</p>
+              <p><code>resource()</code> tracks a promise with loading and error state, and refetches when its input changes.</p>
             </div>
-            <div class="card feature">
-              <div class="ico">⎇</div>
+            <div class="feature">
+              <div class="ico" aria-hidden="true">
+                <svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="2.3" cy="4.5" r="1.4"/><circle cx="2.3" cy="17.5" r="1.4"/><circle cx="19.7" cy="11" r="1.4"/><path d="M3.7 4.5h5L18.2 11"/><path d="M3.7 17.5h5L18.2 11"/></svg>
+              </div>
               <h3>Routing &amp; store</h3>
-              <p>A History-API router with params, plus a reactive store with batched actions.</p>
+              <p>A History-API router with path params, plus a reactive store with batched actions.</p>
             </div>
-            <div class="card feature">
-              <div class="ico">⇪</div>
+            <div class="feature">
+              <div class="ico" aria-hidden="true">
+                <svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M11 2v8"/><path d="M5 10h12"/><path d="M7.5 13.5h7"/><path d="M9.5 17h3"/></svg>
+              </div>
               <h3>Server rendering</h3>
-              <p><code>renderToString()</code> renders the same components to HTML — no browser required.</p>
+              <p><code>renderToString()</code> grounds the same components to an HTML string — no browser required.</p>
             </div>
           </div>
         </div>
@@ -129,12 +162,12 @@
         <div class="container">
           <div class="section-head">
             <span class="eyebrow">The whole idea</span>
-            <h2>Signals in, DOM out.</h2>
-            <p>Declare reactive state, return DOM. RisBo keeps them in sync automatically.</p>
+            <h2>A signal declares state. A binding reads it.</h2>
+            <p>Nothing else has to happen for the two to stay in sync — RisBo connects them once, at creation time.</p>
           </div>
           <div class="showcase-grid">
             <div class="code">
-              <div class="code-head"><span class="dot-row"><i></i><i></i><i></i></span><span class="name">counter.js</span></div>
+              <div class="code-head"><span class="dot-row"><i></i>CH1</span><span class="name">counter.js</span></div>
               <pre><code class="js">import { signal, computed, h, render } from "risbo";
 
 function Counter() {
@@ -151,7 +184,7 @@ function Counter() {
 render(Counter, document.querySelector("#app"));</code></pre>
             </div>
             <div class="code">
-              <div class="code-head"><span class="dot-row"><i></i><i></i><i></i></span><span class="name">todo.js — control flow</span></div>
+              <div class="code-head"><span class="dot-row ch2"><i></i>CH2</span><span class="name">todo.js — control flow</span></div>
               <pre><code class="js">import { signal, h, For, Show } from "risbo";
 
 const todos = signal([{ id: 1, text: "Ship it", done: false }]);
@@ -175,27 +208,27 @@ const List = () =>
           <div class="section-head">
             <span class="eyebrow">Try it live</span>
             <h2>Runnable examples.</h2>
-            <p>Each demo is a real RisBo app. Read the source in <code>examples/</code>.</p>
+            <p>Each demo is a real RisBo app with no hidden setup. Read the source in <code>examples/</code>.</p>
           </div>
           <div class="ex-grid">
-            <a class="card ex" href="/examples/counter/">
-              <span class="tag">signals</span>
-              <h3>Counter →</h3>
+            <a class="ex" href="/examples/counter/">
+              <span class="tag">signal · computed</span>
+              <h3>Counter <span class="arrow">→</span></h3>
               <p>Signals, computeds, reactive text and event handlers.</p>
             </a>
-            <a class="card ex" href="/examples/todo/">
+            <a class="ex" href="/examples/todo/">
               <span class="tag">For · Show · store</span>
-              <h3>Todo app →</h3>
+              <h3>Todo app <span class="arrow">→</span></h3>
               <p>Keyed lists, filters, two-way binding and a reactive store.</p>
             </a>
-            <a class="card ex" href="/examples/data/">
+            <a class="ex" href="/examples/data/">
               <span class="tag">resource</span>
-              <h3>Async data →</h3>
+              <h3>Async data <span class="arrow">→</span></h3>
               <p>Loading and error states with <code>resource()</code> and refetch.</p>
             </a>
-            <a class="card ex" href="/examples/router/">
+            <a class="ex" href="/examples/router/">
               <span class="tag">router</span>
-              <h3>Router →</h3>
+              <h3>Router <span class="arrow">→</span></h3>
               <p>Client-side routing with path params and links.</p>
             </a>
           </div>
@@ -221,11 +254,11 @@ const List = () =>
           h("button", { class: cls, "on:click": fn }, label);
 
         return h("div", { class: "stack" },
-          h("div", { class: "spread" },
-            h("span", { class: "eyebrow" }, "Live demo"),
+          h("div", { class: "demo-head" },
+            h("span", { class: "dot-row" }, h("i"), "LIVE · CH1"),
             h("span", { class: "badge" }, () => parity())),
-          h("div", { class: "count gradient-text" }, () => String(count())),
-          h("div", { class: "row", style: "justify-content:center" },
+          h("div", { class: "readout" }, () => String(count())),
+          h("div", { class: "row", style: "justify-content:center;margin-top:18px" },
             btn("−", () => count.set((n) => n - 1)),
             btn("+ Increment", () => count.set((n) => n + 1), "primary"),
             btn("Reset", () => count.set(0), "ghost")));
@@ -243,10 +276,15 @@ const List = () =>
       if (saved) root.setAttribute("data-theme", saved);
       const sun = "☀";
       const moon = "☾";
-      const paint = () => (themeBtn.textContent = root.getAttribute("data-theme") === "light" ? moon : sun);
+      // No saved preference yet → the page is following the OS via a media
+      // query with no explicit attribute set; fall back to that preference.
+      const effectiveTheme = () =>
+        root.getAttribute("data-theme") ||
+        (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+      const paint = () => (themeBtn.textContent = effectiveTheme() === "light" ? moon : sun);
       paint();
       themeBtn.addEventListener("click", () => {
-        const next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
+        const next = effectiveTheme() === "light" ? "dark" : "light";
         root.setAttribute("data-theme", next);
         localStorage.setItem("risbo-theme", next);
         paint();

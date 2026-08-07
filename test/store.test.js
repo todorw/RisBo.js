@@ -42,3 +42,11 @@ test("actions mutate state and batch updates", () => {
   assert.equal(store.count, 21);
   assert.equal(runs, 3); // initial + inc + addTwice(batched as one)
 });
+
+test("action accessors are stable references", () => {
+  const store = createStore({ count: 0 }, { inc: (s) => s.count++ });
+  assert.equal(store.inc, store.inc); // same closure every access
+  const handler = store.inc;
+  handler();
+  assert.equal(store.count, 1);
+});

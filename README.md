@@ -309,7 +309,7 @@ cart.add({ id: 1 }); // reactive: any effect reading cart.items re-runs
 | Export | Description |
 | --- | --- |
 | `renderToString(component)` | Render components to an HTML string (`risbo/server`). |
-| `createRouter(routes, options?)` | Returns `{ path, pathname, navigate, matched, params, query, View, Link }`. |
+| `createRouter(routes, options?)` | Returns `{ path, pathname, navigate, matched, params, query, View, Link, dispose }`. |
 | `matchRoute(routes, path)` | Pure route matcher (path params + `*` wildcard). |
 | `createStore(initial, actions?)` | Reactive object store. |
 
@@ -349,7 +349,7 @@ src/
   store.js        reactive object store
   index.js        public API
 scripts/build.js  zero-dep bundler → dist/ (ESM + global/CDN builds)
-test/             node:test suite (56 tests: reactivity, dom, context, server, router, store, dist, utils)
+test/             node:test suite (64 tests: reactivity, dom, context, server, router, store, dist, utils)
 examples/         landing page + runnable browser demos
 ```
 

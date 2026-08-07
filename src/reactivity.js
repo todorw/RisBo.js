@@ -11,7 +11,8 @@
 // -----------------------------------------------------------------------------
 
 const CLEAN = 0;
-const DIRTY = 1;
+const CHECK = 1; // a source changed, but we don't yet know if *this* node's value will
+const DIRTY = 2; // a tracked source is confirmed changed — this node must recompute
 
 // The computation currently collecting dependencies (for tracking reads).
 let Listener = null;
@@ -69,20 +70,47 @@ function track(source) {
   }
 }
 
-function notify(source) {
-  for (const observer of source.observers) {
-    if (observer === Listener) continue; // ignore self-writes during a run
-    if (observer.computed) {
-      if (observer.state !== DIRTY) {
-        observer.state = DIRTY;
-        notify(observer); // propagate through derived values
-      }
-    } else if (BatchQueue) {
-      BatchQueue.add(observer);
-    } else {
-      observer.run();
+// A source whose value is *confirmed* different marks its direct observers DIRTY
+// (they must recompute — no way to know their output without running them) and,
+// for computed observers, propagates CHECK further downstream ("one of your
+// sources changed, but you might still produce the same value — verify before
+// you commit to recomputing"). This is what lets `equals` on a computed actually
+// stop an update from reaching effects several links down the chain, while still
+// letting effects run unconditionally when *they* read the changed source directly.
+function markStale(node, state) {
+  if (node.state >= state) return;
+  const wasClean = node.state === CLEAN;
+  node.state = state;
+  if (!wasClean) return;
+  if (node.computed) {
+    for (const observer of node.observers) markStale(observer, CHECK);
+  } else if (BatchQueue) {
+    BatchQueue.add(node);
+  } else {
+    resolve(node);
+  }
+}
+
+// Bring a CHECK/DIRTY node up to date, recursing into CHECK sources first (a
+// node only needs to actually recompute if something it reads turns out to have
+// really changed). Computeds that do recompute and produce an equal value stop
+// the dirty flag from escalating any further, so nothing downstream reruns.
+function resolve(node) {
+  if (node.state === CHECK) {
+    for (const source of node.sources || []) {
+      if (!source.computed) continue; // plain signals are always current
+      resolve(source);
+      if (node.state === DIRTY) break; // a source truly changed — no need to check the rest
     }
   }
+  if (node.state === DIRTY) {
+    const oldValue = node.value;
+    node.run();
+    if (node.computed && !(node.equals && node.equals(oldValue, node.value))) {
+      for (const observer of node.observers) observer.state = DIRTY;
+    }
+  }
+  node.state = CLEAN;
 }
 
 // -----------------------------------------------------------------------------
@@ -102,7 +130,12 @@ class Signal {
   write(value) {
     if (this.equals && this.equals(this.value, value)) return value;
     this.value = value;
-    batch(() => notify(this));
+    batch(() => {
+      for (const observer of this.observers) {
+        if (observer === Listener) continue; // ignore self-writes during a run
+        markStale(observer, DIRTY); // this source is confirmed changed
+      }
+    });
     return value;
   }
 }
@@ -142,14 +175,7 @@ class Computation extends Scope {
   }
 
   read() {
-    if (this.state === DIRTY && !this.disposed) {
-      const prev = this.value;
-      this.state = CLEAN;
-      this.run();
-      // If our value is unchanged, downstream effects already scheduled will
-      // simply read the same value — correct, if occasionally over-eager.
-      void prev;
-    }
+    if (!this.disposed) resolve(this);
     track(this);
     return this.value;
   }
@@ -190,10 +216,7 @@ export function computed(fn, options = {}) {
   if (options.equals) node.equals = options.equals;
   const accessor = () => node.read();
   accessor.peek = () => {
-    if (node.state === DIRTY) {
-      node.state = CLEAN;
-      node.run();
-    }
+    resolve(node);
     return node.value;
   };
   return accessor;
@@ -221,11 +244,18 @@ export function effect(fn, value) {
     false
   );
   node.run();
+  node.state = CLEAN; // the constructor default (DIRTY) only matters before the first run
   return () => disposeNode(node);
 }
 
 /**
  * Group multiple writes so dependent effects run only once afterwards.
+ *
+ * Every queued effect gets a chance to run even if another one throws — one
+ * broken binding shouldn't leave unrelated parts of the UI stuck out of sync.
+ * If anything threw, the batch still rethrows afterwards so the failure isn't
+ * silently swallowed (the triggering `fn`'s own error takes precedence; any
+ * effect errors are combined into an `AggregateError` otherwise).
  * @template T
  * @param {() => T} fn
  * @returns {T}
@@ -233,12 +263,29 @@ export function effect(fn, value) {
 export function batch(fn) {
   if (BatchQueue) return fn();
   const queue = (BatchQueue = new Set());
+  let result, caught, threw;
   try {
-    return fn();
+    result = fn();
+  } catch (error) {
+    caught = error;
+    threw = true;
   } finally {
     BatchQueue = null;
-    for (const effectNode of queue) effectNode.run();
   }
+
+  const errors = [];
+  for (const node of queue) {
+    try {
+      resolve(node);
+    } catch (error) {
+      errors.push(error);
+    }
+  }
+
+  if (threw) throw caught;
+  if (errors.length === 1) throw errors[0];
+  if (errors.length > 1) throw new AggregateError(errors, "Multiple effects failed while flushing a batch");
+  return result;
 }
 
 /**

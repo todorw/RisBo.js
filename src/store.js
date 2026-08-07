@@ -16,12 +16,19 @@ export function createStore(initial, actions = {}) {
   const signals = new Map();
   for (const key of Object.keys(initial)) signals.set(key, signal(initial[key]));
 
+  // Bound once per action so `store.inc === store.inc` holds — handy for
+  // things like `removeEventListener` or dependency arrays that compare by
+  // reference, and cheaper than allocating a new closure on every access.
+  const bound = new Map();
+
   const store = new Proxy(
     {},
     {
       get(_, key) {
         if (key in actions) {
-          return (...args) => batch(() => actions[key](store, ...args));
+          let fn = bound.get(key);
+          if (!fn) bound.set(key, (fn = (...args) => batch(() => actions[key](store, ...args))));
+          return fn;
         }
         const s = signals.get(key);
         return s ? s() : undefined;

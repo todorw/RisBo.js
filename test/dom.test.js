@@ -139,6 +139,17 @@ test("For preserves item node identity across reorders", () => {
   assert.equal(node2Before, node2After, "node for key 2 should be reused");
 });
 
+test("For throws a clear error when an item renders multiple nodes", () => {
+  const items = signal([1, 2]);
+  assert.throws(
+    () =>
+      mount(() =>
+        h("ul", null, h(For, { each: () => items() }, (n) => [h("li", null, String(n)), h("li", null, "extra")]))
+      ),
+    /single element/
+  );
+});
+
 test("render dispose tears down reactivity", () => {
   const count = signal(0);
   let runs = 0;

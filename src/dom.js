@@ -284,9 +284,18 @@ export function For(props) {
 }
 
 // For keyed reconciliation each item must resolve to a single movable node.
-// Elements are returned as-is above; primitives become text nodes here.
+// Elements are returned as-is above; primitives become text nodes here. A
+// render function that hands back an array/Fragment can't be reconciled (there
+// is no single node left to move on reorder), so fail loudly instead of
+// silently stringifying it into garbage text.
 function toNode(value) {
   if (value == null || value === false || value === true) return document.createComment("");
+  if (Array.isArray(value)) {
+    throw new Error(
+      "For/Index: each item must render a single element, not multiple children. " +
+        "Wrap the returned nodes in one element (e.g. a <div> or <li>)."
+    );
+  }
   return document.createTextNode(String(value));
 }
 

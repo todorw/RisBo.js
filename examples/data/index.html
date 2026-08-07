@@ -1,12 +1,12 @@
 <!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>RisBo.js — Async data</title>
     <link rel="stylesheet" href="/examples/style.css" />
     <style>body { padding: 80px 20px; } .app { max-width: 520px; }
-      .avatar { width: 52px; height: 52px; border-radius: 14px; background: var(--grad); display: grid; place-items: center; font-weight: 800; color: #08101f; }
+      .avatar { width: 52px; height: 52px; border-radius: var(--r); background: var(--brand); display: grid; place-items: center; font: 700 18px var(--mono); color: var(--bg); }
       .field { display: flex; justify-content: space-between; padding: 11px 2px; border-top: 1px solid var(--border); }
       .field:first-of-type { border-top: none; }
     </style>
@@ -52,7 +52,7 @@
               h(Match, { when: () => person.loading() }, () => h(Skeleton)),
               h(Match, { when: () => person.error() },
                 () => h("div", { class: "stack" },
-                  h("span", { class: "badge", style: "color:var(--danger);border-color:#ff6b8133;background:#ff6b8114" }, "Error"),
+                  h("span", { class: "badge badge-danger" }, "Error"),
                   h("p", { class: "muted" }, () => person.error().message),
                   h("button", { class: "primary btn-sm", style: "width:fit-content", "on:click": () => person.refetch() }, "Retry"))))));
       }

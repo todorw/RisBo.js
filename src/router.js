@@ -63,7 +63,9 @@ export function createRouter(routes, options = {}) {
     path.set(currentPath());
   };
 
-  window.addEventListener("popstate", () => path.set(currentPath()));
+  const onPopState = () => path.set(currentPath());
+  window.addEventListener("popstate", onPopState);
+  const dispose = () => window.removeEventListener("popstate", onPopState);
 
   const pathname = computed(() => stripBase(path()).split("?")[0].split("#")[0] || "/");
   const matched = computed(() => matchRoute(routes, stripBase(path())));
@@ -109,5 +111,5 @@ export function createRouter(routes, options = {}) {
     );
   };
 
-  return { path, pathname, navigate, matched, params, query, View, Link };
+  return { path, pathname, navigate, matched, params, query, View, Link, dispose };
 }

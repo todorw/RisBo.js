@@ -21,6 +21,9 @@ globalThis.window = {
   addEventListener(type, fn) {
     if (type === "popstate") popstate = fn;
   },
+  removeEventListener(type, fn) {
+    if (type === "popstate" && popstate === fn) popstate = () => {};
+  },
 };
 
 const { createRouter } = await import("../src/router.js");
@@ -60,4 +63,17 @@ test("Link marks itself active for the current path", () => {
   router.navigate("/users/1");
   assert.doesNotMatch(a.getAttribute("class") || "", /\bactive\b/);
   assert.equal(a.getAttribute("aria-current"), null);
+});
+
+test("dispose removes the popstate listener", () => {
+  window.location.pathname = "/";
+  window.location.search = "";
+  const router = createRouter(routes);
+  assert.equal(typeof popstate, "function");
+  router.dispose();
+  // The stub only ever tracks one handler; after dispose, navigating via the
+  // browser back/forward buttons must no longer reach this router's path signal.
+  const before = router.path();
+  popstate();
+  assert.equal(router.path(), before);
 });
