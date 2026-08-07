@@ -51,6 +51,6 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/TodorW/RisBo.js"
+    "url": "git+https://github.com/TodorW/RisBo.js.git"
   }
 }
