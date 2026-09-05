@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -11,7 +11,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 execFileSync("node", [join(root, "scripts", "build.js")], { stdio: "ignore" });
 
 test("ESM bundle exposes a working API", async () => {
-  const R = await import(join(root, "dist", "risbo.js") + `?t=${Date.now()}`);
+  const R = await import(pathToFileURL(join(root, "dist", "risbo.js")).href + `?t=${Date.now()}`);
   const count = R.signal(1);
   const double = R.computed(() => count() * 2);
   const seen = [];
